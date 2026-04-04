@@ -1,0 +1,726 @@
+import { useState, useEffect } from "react";
+
+const TABS = [
+  { id:"trend", label:"Trend", icon:"📡" },
+  { id:"hook", label:"Hook", icon:"🎣" },
+  { id:"strategy", label:"Strategia", icon:"🎬" },
+  { id:"viral", label:"Virale", icon:"🔥" },
+  { id:"competitors", label:"Competitor", icon:"🕵️" },
+];
+const NICHES = ["Nutrizione","Fitness","Benessere mentale","Cucina sana","Dimagrimento","Sport & Performance"];
+const PLATFORMS = ["TikTok","Instagram Reels","YouTube Shorts","LinkedIn"];
+const TAB_COLORS = { trend:"#00ff9d", hook:"#ff6b35", strategy:"#a78bfa", viral:"#f59e0b", competitors:"#38bdf8" };
+const glow = (c="#00ff9d") => ({ boxShadow:`0 0 20px ${c}22,0 0 40px ${c}11`, border:`1px solid ${c}44` });
+
+// ─── LLM API (Netlify Function) ───────────────────────────────────────────────────
+const PROVIDERS = [
+  { id:"anthropic", label:"Claude", defaultModel:"claude-sonnet-4-20250514" },
+  { id:"gemini", label:"Gemini", defaultModel:"gemini-1.5-flash" },
+];
+
+async function callLLM({provider="anthropic", prompt, system, useSearch=false, model}) {
+  const body = {
+    provider,
+    prompt,
+    system,
+    useSearch: !!useSearch,
+    model
+  };
+  try {
+    const r = await fetch("/.netlify/functions/llm",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body:JSON.stringify(body)
+    });
+    const data = await r.json();
+    return { text: data.text || "", raw: data.raw || data, error: data.error || null };
+  } catch (e) {
+    return { text:"", raw:null, error:{message:e.message||"Network error"} };
+  }
+}
+
+let ACTIVE_PROVIDER = "anthropic";
+const setActiveProvider = (provider) => { ACTIVE_PROVIDER = provider; };
+
+async function callClaude(prompt, system, useSearch=false) {
+  return callLLM({ provider: ACTIVE_PROVIDER, prompt, system, useSearch });
+}
+
+
+// ─── JSON EXTRACTION ──────────────────────────────────────────────
+function extractVideos(rawText) {
+  if(!rawText) return { videos:[], debugInfo:"Testo vuoto" };
+  let debugInfo = "";
+
+  // Strategy 1: find JSON block
+  try {
+    const s = rawText.indexOf('{"videos"');
+    const s2 = rawText.indexOf('{ "videos"');
+    const start = s!==-1 ? s : s2!==-1 ? s2 : -1;
+    if(start!==-1){
+      const end = rawText.lastIndexOf("}");
+      const chunk = rawText.slice(start, end+1);
+      const parsed = JSON.parse(chunk);
+      if(Array.isArray(parsed.videos)){
+        debugInfo = `✅ JSON trovato (strategia 1) · ${parsed.videos.length} video`;
+        return { videos: parsed.videos.filter(v=>v.title), debugInfo };
+      }
+    }
+  } catch(e){ debugInfo += `S1 fail: ${e.message}\n`; }
+
+  // Strategy 2: extract from markdown code block
+  try {
+    const match = rawText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+    if(match){
+      const parsed = JSON.parse(match[1]);
+      if(Array.isArray(parsed.videos)){
+        debugInfo += `✅ JSON in code block · ${parsed.videos.length} video`;
+        return { videos: parsed.videos.filter(v=>v.title), debugInfo };
+      }
+    }
+  } catch(e){ debugInfo += `S2 fail: ${e.message}\n`; }
+
+  // Strategy 3: scrape urls + titles from plain text
+  try {
+    const urlRegex = /https?:\/\/(www\.)?(tiktok\.com|instagram\.com)\/[^\s\)\]"']+/g;
+    const urls = rawText.match(urlRegex) || [];
+    if(urls.length > 0){
+      const videos = urls.map((url,i) => {
+        // try to find nearby title text
+        const idx = rawText.indexOf(url);
+        const before = rawText.slice(Math.max(0,idx-200), idx);
+        const titleMatch = before.match(/["*-]\s*(.{10,80})\s*$/);
+        return {
+          title: titleMatch ? titleMatch[1].trim() : `Video ${i+1}`,
+          url,
+          score: 6,
+          tags:[],
+          analysis:"Estratto da testo libero — analisi non disponibile"
+        };
+      });
+      debugInfo += `⚠️ URL estratti da testo (strategia 3) · ${videos.length} trovati`;
+      return { videos, debugInfo };
+    }
+  } catch(e){ debugInfo += `S3 fail: ${e.message}\n`; }
+
+  debugInfo += `❌ Nessun video estratto\n--- TESTO RAW (primi 500 char) ---\n${rawText.slice(0,500)}`;
+  return { videos:[], debugInfo };
+}
+
+// ─── STORAGE ──────────────────────────────────────────────────────
+async function loadCompetitors() {
+  try { const r=await window.storage.get("viralosc2"); return r?JSON.parse(r.value):[]; } catch { return []; }
+}
+async function saveCompetitors(list) {
+  try { await window.storage.set("viralosc2",JSON.stringify(list)); } catch {}
+}
+
+// ─── SHARED UI ────────────────────────────────────────────────────
+const Spinner = ({color="#00ff9d",label="Analisi in corso…"}) => (
+  <div style={{display:"flex",alignItems:"center",gap:10,color,fontSize:13,marginTop:14}}>
+    <div style={{width:14,height:14,border:`2px solid ${color}44`,borderTop:`2px solid ${color}`,borderRadius:"50%",animation:"spin .8s linear infinite"}}/>
+    {label}
+  </div>
+);
+
+const ResultBox = ({text,color="#00ff9d"}) => !text?null:(
+  <div style={{marginTop:18,padding:"16px",background:"linear-gradient(135deg,#0a1628,#0d1f3c)",...glow(color),borderRadius:12,whiteSpace:"pre-wrap",lineHeight:1.7,fontSize:13,color:"#c8d8f0",fontFamily:"'Courier New',monospace",maxHeight:380,overflowY:"auto"}}>
+    {text}
+  </div>
+);
+
+function DebugPanel({info, rawText}) {
+  const [open,setOpen]=useState(false);
+  if(!info&&!rawText) return null;
+  return (
+    <div style={{marginTop:12,borderRadius:8,overflow:"hidden",border:"1px solid #1e3a5f"}}>
+      <button onClick={()=>setOpen(!open)} style={{width:"100%",padding:"8px 12px",background:"#070f1e",border:"none",color:"#4a6a8a",fontSize:11,cursor:"pointer",textAlign:"left",fontFamily:"monospace",display:"flex",justifyContent:"space-between"}}>
+        <span>🐛 Debug panel</span><span>{open?"▲":"▼"}</span>
+      </button>
+      {open&&(
+        <div style={{background:"#020508",padding:12,maxHeight:300,overflowY:"auto"}}>
+          {info&&<div style={{fontSize:11,color:"#f59e0b",fontFamily:"monospace",marginBottom:8,whiteSpace:"pre-wrap"}}>{info}</div>}
+          {rawText&&(
+            <div>
+              <div style={{fontSize:10,color:"#4a6a8a",marginBottom:4,fontFamily:"monospace"}}>— Risposta grezza API —</div>
+              <div style={{fontSize:11,color:"#7a9bc0",fontFamily:"monospace",whiteSpace:"pre-wrap",wordBreak:"break-all"}}>{rawText.slice(0,1500)}{rawText.length>1500?"…":""}</div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Sel({value,onChange,options,label}) {
+  return (
+    <div style={{marginBottom:14}}>
+      <label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>{label}</label>
+      <select value={value} onChange={e=>onChange(e.target.value)} style={{width:"100%",padding:"10px 12px",background:"#070f1e",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:14,outline:"none",fontFamily:"inherit"}}>
+        {options.map(o=><option key={o}>{o}</option>)}
+      </select>
+    </div>
+  );
+}
+function Textarea({value,onChange,placeholder,rows=3}) {
+  return <textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows} style={{width:"100%",padding:"11px 13px",background:"#070f1e",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:14,outline:"none",resize:"vertical",fontFamily:"inherit",lineHeight:1.6,boxSizing:"border-box",marginBottom:14}}/>;
+}
+function Btn({onClick,loading,children,color="#00ff9d",small=false}) {
+  return (
+    <button onClick={onClick} disabled={loading} style={{width:small?"auto":"100%",padding:small?"8px 14px":"13px 20px",background:loading?"#0a1628":`linear-gradient(135deg,${color}22,${color}11)`,border:`1px solid ${loading?"#1e3a5f":color}`,color:loading?"#4a6a8a":color,borderRadius:8,fontSize:small?12:14,fontWeight:600,cursor:loading?"not-allowed":"pointer",letterSpacing:.5,transition:"all .2s",fontFamily:"inherit"}}>
+      {children}
+    </button>
+  );
+}
+
+// ─── TREND ────────────────────────────────────────────────────────
+function TrendScanner() {
+  const [niche,setNiche]=useState("Nutrizione"); const [rawData,setRawData]=useState("");
+  const [loading,setLoading]=useState(false); const [result,setResult]=useState(""); const [mode,setMode]=useState("real");
+  const runReal = async () => {
+    if(!rawData.trim()) return; setLoading(true); setResult("");
+    const {text} = await callClaude(`Nicchia: ${niche}\nDati:\n${rawData}`,`Sei un esperto di content marketing virale. Analizza questi dati REALI:\n1. 🔥 I 5 TREND PIÙ FORTI\n2. 🎯 COME USARLI nella nicchia "${niche}"\n3. ⚡ URGENZA\n4. 💡 3 IDEE VIDEO PRONTE\nRispondi in italiano.`);
+    setResult(text); setLoading(false);
+  };
+  const runAI = async () => {
+    setLoading(true); setResult("");
+    const {text} = await callClaude(`Nicchia: ${niche}`,`Genera trend PROBABILI:\n1. 🔥 TOP 5 TREND\n2. 📊 3 ANGOLI VIRALI\n3. 🎯 TARGET PSICOLOGICO\n⚠️ Specifica che sono stime AI. Rispondi in italiano.`);
+    setResult(text); setLoading(false);
+  };
+  return (
+    <div>
+      <div style={{display:"flex",gap:8,marginBottom:18}}>
+        {[{id:"real",label:"🌐 Dati Reali",desc:"Incolla da TikTok"},{id:"ai",label:"🤖 Solo AI",desc:"Trend probabili"}].map(m=>(
+          <button key={m.id} onClick={()=>{setMode(m.id);setResult("");}} style={{flex:1,padding:"10px 8px",borderRadius:8,cursor:"pointer",border:mode===m.id?"1px solid #00ff9d66":"1px solid #1e3a5f",background:mode===m.id?"#00ff9d12":"#070f1e",color:mode===m.id?"#00ff9d":"#4a6a8a",fontFamily:"monospace",fontSize:12,fontWeight:600}}>
+            <div>{m.label}</div><div style={{fontSize:10,opacity:.7,marginTop:2}}>{m.desc}</div>
+          </button>
+        ))}
+      </div>
+      <Sel value={niche} onChange={setNiche} options={NICHES} label="Nicchia"/>
+      {mode==="real"?(
+        <>
+          <div style={{background:"#070f1e",border:"1px solid #1e3a5f",borderRadius:10,padding:14,marginBottom:14}}>
+            <div style={{fontSize:10,color:"#00ff9d",letterSpacing:2,textTransform:"uppercase",marginBottom:8,fontFamily:"monospace"}}>Passo 1 — Apri TikTok Creative Center</div>
+            <a href="https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/it?period=7&country=IT" target="_blank" rel="noopener noreferrer" style={{display:"inline-block",padding:"9px 16px",background:"#00ff9d15",border:"1px solid #00ff9d44",color:"#00ff9d",borderRadius:7,fontSize:13,textDecoration:"none",fontFamily:"monospace",fontWeight:600}}>🔗 Apri Creative Center →</a>
+          </div>
+          <div style={{marginBottom:14}}>
+            <label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Passo 2 — Incolla i dati trovati</label>
+            <Textarea value={rawData} onChange={setRawData} placeholder={"es:\n#dieta 45M views +120%\n#colazione proteica 12M views\n..."} rows={5}/>
+          </div>
+          <Btn onClick={runReal} loading={loading} color="#00ff9d">{loading?"Analisi…":"📡 Analizza Trend Reali"}</Btn>
+        </>
+      ):(
+        <>
+          <div style={{background:"#2a1a0a",border:"1px solid #f59e0b44",borderRadius:8,padding:"10px 14px",marginBottom:14,fontSize:12,color:"#f59e0b",fontFamily:"monospace"}}>⚠️ Trend probabili AI, non dati real-time.</div>
+          <Btn onClick={runAI} loading={loading} color="#00ff9d">{loading?"Generazione…":"🤖 Genera Trend AI"}</Btn>
+        </>
+      )}
+      {loading&&<Spinner/>}
+      <ResultBox text={result} color="#00ff9d"/>
+    </div>
+  );
+}
+
+// ─── HOOK ─────────────────────────────────────────────────────────
+function HookGenerator() {
+  const [topic,setTopic]=useState(""); const [platform,setPlatform]=useState("TikTok");
+  const [hookType,setHookType]=useState("Curiosità"); const [loading,setLoading]=useState(false); const [result,setResult]=useState("");
+  const run = async () => {
+    if(!topic) return; setLoading(true); setResult("");
+    const {text} = await callClaude(`Argomento: ${topic}\nPiattaforma: ${platform}\nTipo: ${hookType}`,`Sei un esperto di copywriting virale. Genera:\n1. 🎣 10 HOOK che fermano lo scroll\n2. 🗣️ SCRIPT APERTURA per i 3 migliori (15 sec)\n3. 🎭 VARIANTI TONO\n4. 📱 TESTO SOVRIMPRESSO\nRispondi in italiano.`);
+    setResult(text); setLoading(false);
+  };
+  return (
+    <div>
+      <div style={{marginBottom:14}}><label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Argomento del video *</label><Textarea value={topic} onChange={setTopic} placeholder="es. 'perché stai fallendo con la dieta'..." rows={2}/></div>
+      <Sel value={platform} onChange={setPlatform} options={PLATFORMS} label="Piattaforma"/>
+      <Sel value={hookType} onChange={setHookType} options={["Curiosità","Paura/Problema","Risultato shock","Contro-intuitivo","Storia personale","Sfida"]} label="Tipo di hook"/>
+      <Btn onClick={run} loading={loading} color="#ff6b35">{loading?"Generazione…":"🎣 Genera Hook"}</Btn>
+      {loading&&<Spinner color="#ff6b35"/>}
+      <ResultBox text={result} color="#ff6b35"/>
+    </div>
+  );
+}
+
+// ─── STRATEGY ─────────────────────────────────────────────────────
+function VideoStrategy() {
+  const [goal,setGoal]=useState(""); const [audience,setAudience]=useState("");
+  const [platform,setPlatform]=useState("Instagram Reels"); const [loading,setLoading]=useState(false); const [result,setResult]=useState("");
+  const run = async () => {
+    if(!goal) return; setLoading(true); setResult("");
+    const {text} = await callClaude(`Obiettivo: ${goal}\nTarget: ${audience||"n/a"}\nPiattaforma: ${platform}`,`Sei uno stratega di content marketing. Crea:\n1. 🎬 STRUTTURA VIDEO secondo per secondo\n2. 📋 PIANO EDITORIALE 30 GIORNI\n3. 🔁 FRAMEWORK RIPETIBILE\n4. 📈 KPI E METRICHE\n5. 🤝 CTA STRATEGY\nRispondi in italiano.`);
+    setResult(text); setLoading(false);
+  };
+  return (
+    <div>
+      <div style={{marginBottom:14}}><label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Obiettivo principale *</label><Textarea value={goal} onChange={setGoal} placeholder="es. acquisire clienti per consulenze..." rows={2}/></div>
+      <div style={{marginBottom:14}}><label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Target audience</label><Textarea value={audience} onChange={setAudience} placeholder="es. donne 30-45 anni..." rows={2}/></div>
+      <Sel value={platform} onChange={setPlatform} options={PLATFORMS} label="Piattaforma principale"/>
+      <Btn onClick={run} loading={loading} color="#a78bfa">{loading?"Costruzione…":"🎬 Crea Strategia"}</Btn>
+      {loading&&<Spinner color="#a78bfa"/>}
+      <ResultBox text={result} color="#a78bfa"/>
+    </div>
+  );
+}
+
+// ─── VIRAL ────────────────────────────────────────────────────────
+function ViralFormula() {
+  const [videoIdea,setVideoIdea]=useState(""); const [loading,setLoading]=useState(false); const [result,setResult]=useState("");
+  const run = async () => {
+    if(!videoIdea) return; setLoading(true); setResult("");
+    const {text} = await callClaude(`Idea: ${videoIdea}`,`Sei un esperto di psicologia virale. Analizza:\n1. 🧠 SCORE VIRALE /10\n2. ⚗️ INGREDIENTI MANCANTI\n3. 🔄 RIFORMULAZIONE OTTIMIZZATA\n4. 💬 5 VARIANTI TITOLO A/B\n5. 🎭 STRUTTURA EMOTIVA\n6. 📣 AMPLIFICATORI\nRispondi in italiano.`);
+    setResult(text); setLoading(false);
+  };
+  return (
+    <div>
+      <div style={{marginBottom:14}}><label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Descrivi la tua idea video *</label><Textarea value={videoIdea} onChange={setVideoIdea} placeholder="es. '5 alimenti che pensavi sani ma che fanno ingrassare'..." rows={4}/></div>
+      <Btn onClick={run} loading={loading} color="#f59e0b">{loading?"Analisi…":"🔥 Analizza Potenziale Virale"}</Btn>
+      {loading&&<Spinner color="#f59e0b"/>}
+      <ResultBox text={result} color="#f59e0b"/>
+    </div>
+  );
+}
+
+// ─── COMPETITORS ──────────────────────────────────────────────────
+function ScoreBadge({score}) {
+  const n=Number(score)||0;
+  const c=n>=8?"#00ff9d":n>=6?"#f59e0b":"#ff6b35";
+  return <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:36,height:36,borderRadius:"50%",background:`${c}18`,border:`2px solid ${c}`,color:c,fontWeight:700,fontSize:13,fontFamily:"monospace",flexShrink:0}}>{n}</div>;
+}
+
+function VideoCard({video,onDelete}) {
+  const [open,setOpen]=useState(false);
+  return (
+    <div style={{background:"#04080f",border:"1px solid #1e3a5f",borderRadius:8,padding:12,marginBottom:8}}>
+      <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
+        <ScoreBadge score={video.score}/>
+        <div style={{flex:1,minWidth:0}}>
+          <div style={{color:"#e8f4ff",fontSize:13,fontWeight:600,marginBottom:4,lineHeight:1.4}}>{video.title}</div>
+          {video.tags?.length>0&&(
+            <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:6}}>
+              {video.tags.slice(0,3).map((t,i)=><span key={i} style={{fontSize:10,color:"#38bdf8",background:"#38bdf818",padding:"2px 6px",borderRadius:4,fontFamily:"monospace"}}>{t}</span>)}
+            </div>
+          )}
+          <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
+            {video.url&&video.url.startsWith("http")&&(
+              <a href={video.url} target="_blank" rel="noopener noreferrer" style={{fontSize:11,color:"#38bdf8",textDecoration:"none",fontFamily:"monospace"}}>🔗 Apri video</a>
+            )}
+            {video.analysis&&<button onClick={()=>setOpen(!open)} style={{background:"none",border:"none",color:"#4a6a8a",fontSize:11,cursor:"pointer",fontFamily:"monospace",padding:0}}>{open?"▲ meno":"▼ analisi"}</button>}
+            <button onClick={()=>onDelete(video.url||video.title)} style={{background:"none",border:"none",color:"#2a4a6a",fontSize:14,cursor:"pointer",marginLeft:"auto"}}>✕</button>
+          </div>
+          {open&&video.analysis&&<div style={{marginTop:8,padding:"8px 10px",background:"#070f1e",borderRadius:6,fontSize:12,color:"#7a9bc0",lineHeight:1.6,fontFamily:"monospace"}}>{video.analysis}</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Search strategies
+function buildSearchQueries(handle, platform) {
+  const h = handle.replace("@","");
+  if(platform==="TikTok") return [
+    { label:"site: diretto", q:`site:tiktok.com/@${h}` },
+    { label:"nome + video", q:`${h} tiktok video nutrizione dieta` },
+    { label:"aggregatori", q:`${h} tiktok inflact socialbook` },
+  ];
+  return [
+    { label:"site: diretto", q:`site:instagram.com/${h}` },
+    { label:"nome + reel", q:`${h} instagram reel` },
+    { label:"aggregatori", q:`${h} instagram picuki storiesig` },
+  ];
+}
+
+const SCAN_SYSTEM = `Sei un analista di contenuti social con accesso alla web search. Il tuo compito è trovare video/reel pubblicati dal profilo indicato.
+
+Usa la web search con la query fornita. Analizza i risultati e per ogni video/reel trovato con URL specifico estrai le informazioni.
+
+IMPORTANTISSIMO: rispondi SOLO con questo JSON esatto, zero testo prima o dopo:
+{"videos":[{"title":"titolo o caption del video","url":"https://url-diretto","score":7,"tags":["#hashtag1","#hashtag2"],"analysis":"1-2 frasi sul potenziale virale"}],"searchNote":"cosa hai trovato o non trovato"}
+
+Regole:
+- score da 1-10 basato su hook del titolo, emozione, tema trending
+- se non trovi video con URL specifici restituisci {"videos":[],"searchNote":"motivo"}
+- NON inventare URL, usa solo quelli reali dai risultati di ricerca
+- includi solo video con URL che inizia con https://tiktok.com o https://instagram.com`;
+
+function CompetitorRow({comp,onDelete,onScan,onProfile,onDiscover,scanning,analyzing,discovering}) {
+  const icon=comp.platform==="Instagram"?"📸":"🎵";
+  return (
+    <div style={{background:"#070f1e",border:"1px solid #1e3a5f",borderRadius:10,padding:14,marginBottom:10}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <span style={{fontSize:20}}>{icon}</span>
+          <div>
+            <div style={{color:"#e8f4ff",fontWeight:600,fontSize:14}}>{comp.handle}</div>
+            <div style={{color:"#4a6a8a",fontSize:11,fontFamily:"monospace"}}>{comp.platform} · {comp.niche}</div>
+          </div>
+        </div>
+        <button onClick={()=>onDelete(comp.id)} style={{background:"none",border:"none",color:"#2a4a6a",cursor:"pointer",fontSize:18,padding:"2px 8px"}}>✕</button>
+      </div>
+      {comp.lastScan&&<div style={{fontSize:10,color:"#4a6a8a",fontFamily:"monospace",marginBottom:10}}>{comp.videos?.length||0} video · scansione {new Date(comp.lastScan).toLocaleDateString("it-IT")}</div>}
+      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+        <Btn onClick={()=>onScan(comp)} loading={scanning===comp.id} color="#38bdf8" small>
+          {scanning===comp.id?"🔍 Ricerca…":"🔍 Scansiona"}
+        </Btn>
+        <Btn onClick={()=>onProfile(comp)} loading={analyzing===comp.id} color="#a78bfa" small>
+          {analyzing===comp.id?"📊 Analisi…":"📊 Profilo"}
+        </Btn>
+        <Btn onClick={()=>onDiscover(comp)} loading={discovering===comp.id} color="#f59e0b" small>
+          {discovering===comp.id?"🌐 Ricerca…":"🌐 Simili"}
+        </Btn>
+      </div>
+    </div>
+  );
+}
+
+function Competitors() {
+  const [competitors,setCompetitors]=useState([]);
+  const [handle,setHandle]=useState(""); const [platform,setPlatform]=useState("TikTok"); const [niche,setNiche]=useState("Nutrizione");
+  const [scanning,setScanning]=useState(null); const [analyzing,setAnalyzing]=useState(null); const [discovering,setDiscovering]=useState(null); const [batchLoading,setBatchLoading]=useState(false);
+  const [similarResult,setSimilarResult]=useState(""); const [similarComp,setSimilarComp]=useState(null);
+  const [selectedComp,setSelectedComp]=useState(null);
+  const [profileResult,setProfileResult]=useState(""); const [profileTitle,setProfileTitle]=useState("");
+  const [storageReady,setStorageReady]=useState(false);
+  const [scanLog,setScanLog]=useState([]); // debug log
+  const [rawResponse,setRawResponse]=useState("");
+  const [manualLinks,setManualLinks]=useState(""); const [showManual,setShowManual]=useState(false);
+
+  useEffect(()=>{ loadCompetitors().then(list=>{setCompetitors(list);setStorageReady(true);}); },[]);
+
+  const persist = async (list) => { setCompetitors(list); await saveCompetitors(list); };
+
+  const addCompetitor = async () => {
+    if(!handle.trim()) return;
+    const clean=handle.replace(/^@/,"").replace(/https?:\/\/(www\.)?(instagram|tiktok)\.com\//,"").replace(/\?.*/,"").replace(/\//g,"");
+    await persist([...competitors,{id:Date.now().toString(),handle:"@"+clean,platform,niche,addedAt:Date.now(),lastScan:null,videos:[]}]);
+    setHandle("");
+  };
+
+  const deleteCompetitor = async (id) => {
+    await persist(competitors.filter(c=>c.id!==id));
+    if(selectedComp?.id===id){setSelectedComp(null);setProfileResult("");setScanLog([]);setRawResponse("");}
+  };
+
+  const deleteVideo = async (compId,key) => {
+    const updated=competitors.map(c=>c.id===compId?{...c,videos:c.videos.filter(v=>(v.url||v.title)!==key)}:c);
+    await persist(updated);
+    setSelectedComp(prev=>prev?.id===compId?{...prev,videos:prev.videos.filter(v=>(v.url||v.title)!==key)}:prev);
+  };
+
+  // Multi-strategy scan
+  const scanContent = async (comp) => {
+    setScanning(comp.id); setSelectedComp({...comp,videos:[]}); setProfileResult("");
+    setProfileTitle(""); setScanLog([]); setRawResponse(""); setShowManual(false);
+    const queries = buildSearchQueries(comp.handle, comp.platform);
+    let allVideos = [];
+    const log = [];
+
+    for(const {label,q} of queries){
+      log.push(`🔍 Strategia: ${label}`);
+      log.push(`   Query: "${q}"`);
+      setScanLog([...log]);
+
+      try {
+        const {text, raw, error} = await callClaude(
+          `Cerca i contenuti di "${comp.handle}" su ${comp.platform}. Usa questa query di ricerca: "${q}". Trova video/reel con URL specifici.`,
+          SCAN_SYSTEM,
+          true
+        );
+
+        if(error){
+          log.push(`   ❌ Errore API: ${error.message||JSON.stringify(error)}`);
+          setScanLog([...log]);
+          setRawResponse(JSON.stringify(raw,null,2));
+          continue;
+        }
+
+        log.push(`   📥 Risposta ricevuta (${text.length} char)`);
+        setRawResponse(text);
+        setScanLog([...log]);
+
+        const {videos, debugInfo} = extractVideos(text);
+        log.push(`   ${debugInfo}`);
+        setScanLog([...log]);
+
+        if(videos.length>0){
+          // deduplicate
+          const existingUrls = new Set(allVideos.map(v=>v.url));
+          const newVids = videos.filter(v=>!existingUrls.has(v.url));
+          allVideos=[...allVideos,...newVids];
+          log.push(`   ✅ Totale video unici: ${allVideos.length}`);
+          setScanLog([...log]);
+          if(allVideos.length>=8) break; // enough
+        }
+      } catch(e){
+        log.push(`   ❌ Eccezione: ${e.message}`);
+        setScanLog([...log]);
+      }
+    }
+
+    log.push(allVideos.length>0 ? `\n✅ FATTO — ${allVideos.length} video trovati` : `\n⚠️ Nessun video trovato — prova la modalità manuale`);
+    setScanLog([...log]);
+
+    const updated=competitors.map(c=>c.id===comp.id?{...c,lastScan:Date.now(),videos:allVideos}:c);
+    await persist(updated);
+    setSelectedComp({...comp,videos:allVideos});
+    setScanning(null);
+  };
+
+  // Manual link scoring
+  const scoreManualLinks = async (comp) => {
+    if(!manualLinks.trim()) return;
+    setScanning(comp.id);
+    setScanLog(["📋 Modalità manuale — analisi link incollati…"]);
+
+    const lines = manualLinks.split("\n").filter(l=>l.trim().length>5).slice(0,15);
+    const {text} = await callClaude(
+      `Analizza questi link/testi di video ${comp.platform} del profilo "${comp.handle}" (nicchia: "${comp.niche}"):\n${lines.join("\n")}`,
+      `Sei un analista di contenuti. Per ogni link o caption fornita assegna un voto virale e analisi.
+Rispondi SOLO con JSON:
+{"videos":[{"title":"titolo o prima parte caption","url":"url se presente altrimenti stringa vuota","score":7,"tags":[],"analysis":"perché questo score"}]}`
+    );
+    const {videos, debugInfo} = extractVideos(text);
+    setScanLog([`📋 Analisi manuale: ${debugInfo}`]);
+    setRawResponse(text);
+
+    const existing=competitors.find(c=>c.id===comp.id)?.videos||[];
+    const merged=[...existing,...videos.filter(v=>!existing.find(e=>e.title===v.title))];
+    const updated=competitors.map(c=>c.id===comp.id?{...c,lastScan:Date.now(),videos:merged}:c);
+    await persist(updated);
+    setSelectedComp({...comp,videos:merged});
+    setManualLinks(""); setScanning(null);
+  };
+
+  const discoverSimilar = async (comp) => {
+    setDiscovering(comp.id); setSimilarResult(""); setSimilarComp(comp);
+    setProfileResult(""); setProfileTitle("");
+    const {text} = await callClaude(
+      `Trova creator simili a "${comp.handle}" su ${comp.platform} nella nicchia "${comp.niche}". Cerca profili con stile e contenuti analoghi.`,
+      `Sei un esperto di social media scouting. Analizza il profilo dato e cerca creator simili sulla stessa piattaforma.
+
+Produci una lista di creator simili con:
+1. 🔍 PERCHÉ È SIMILE - stile, nicchia, approccio
+2. 📊 DIMENSIONE - follower stimati  
+3. 🎯 DIFFERENZA CHIAVE - cosa fa di diverso rispetto al profilo di partenza
+4. 💡 PERCHÉ MONITORARLO - cosa puoi imparare
+
+Formato risposta:
+---
+**@handle** · [piattaforma]
+👥 Follower: ~Xk
+🔍 Simile perché: ...
+🎯 Si differenzia per: ...
+💡 Monitoralo perché: ...
+🔗 Profilo: https://...
+---
+
+Trova almeno 5-8 profili reali e verificabili. Rispondi in italiano.`,
+      true
+    );
+    setSimilarResult(text); setDiscovering(null);
+  };
+
+  const analyzeProfile = async (comp) => {
+    setAnalyzing(comp.id); setProfileResult(""); setProfileTitle(`📊 ${comp.handle}`);
+    const {text}=await callClaude(
+      `Analizza il profilo ${comp.platform} "${comp.handle}" (nicchia: "${comp.niche}").`,
+      `Sei un analista strategico di social media. Ricerca e produci:\n1. 👤 PROFILO - chi è, follower, storia\n2. 📊 STRATEGIA CONTENUTI\n3. 🔥 PATTERN VINCENTI\n4. 🎯 POSIZIONAMENTO\n5. 💡 COSA RUBARE - 3 idee concrete\n6. ⚠️ PUNTI DEBOLI\nRispondi in italiano.`,
+      true
+    );
+    setProfileResult(text); setAnalyzing(null);
+  };
+
+  const analyzeAll = async () => {
+    if(competitors.length<2) return;
+    setBatchLoading(true); setProfileResult(""); setProfileTitle("📊 Analisi Comparativa");
+    const handles=competitors.map(c=>`${c.handle} (${c.platform}, ${c.niche})`).join("\n");
+    const {text}=await callClaude(`Confronta:\n${handles}`,`Confronta e analizza:\n1. 🏆 RANKING\n2. 📊 PUNTI FORZA/DEBOLEZZA\n3. 🎯 GAP DI MERCATO\n4. 🔥 PATTERN VINCENTI\n5. 💡 STRATEGIA DIFFERENZIANTE\n6. ⚡ 3 AZIONI IMMEDIATE\nRispondi in italiano.`,true);
+    setProfileResult(text); setBatchLoading(false);
+  };
+
+  return (
+    <div>
+      {/* Add form */}
+      <div style={{background:"#070f1e",border:"1px solid #1e3a5f",borderRadius:10,padding:14,marginBottom:18}}>
+        <div style={{fontSize:10,color:"#38bdf8",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontFamily:"monospace"}}>+ Aggiungi Competitor</div>
+        <div style={{marginBottom:10}}>
+          <label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Handle o URL profilo</label>
+          <input value={handle} onChange={e=>setHandle(e.target.value)} placeholder="@beardedscara o URL" onKeyDown={e=>e.key==="Enter"&&addCompetitor()} style={{width:"100%",padding:"10px 12px",background:"#04080f",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
+        </div>
+        <div style={{display:"flex",gap:8,marginBottom:12}}>
+          <div style={{flex:1}}>
+            <label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Piattaforma</label>
+            <select value={platform} onChange={e=>setPlatform(e.target.value)} style={{width:"100%",padding:"9px 10px",background:"#04080f",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:13,outline:"none",fontFamily:"inherit"}}>
+              <option>TikTok</option><option>Instagram</option>
+            </select>
+          </div>
+          <div style={{flex:1}}>
+            <label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Nicchia</label>
+            <select value={niche} onChange={e=>setNiche(e.target.value)} style={{width:"100%",padding:"9px 10px",background:"#04080f",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:13,outline:"none",fontFamily:"inherit"}}>
+              {NICHES.map(n=><option key={n}>{n}</option>)}
+            </select>
+          </div>
+        </div>
+        <Btn onClick={addCompetitor} loading={false} color="#38bdf8">➕ Aggiungi alla lista</Btn>
+      </div>
+
+      {storageReady&&(
+        <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:14,fontSize:11,color:"#4a6a8a",fontFamily:"monospace"}}>
+          <div style={{width:6,height:6,borderRadius:"50%",background:"#38bdf8",boxShadow:"0 0 6px #38bdf8"}}/>
+          {competitors.length} competitor salvati
+        </div>
+      )}
+
+      {competitors.length===0?(
+        <div style={{textAlign:"center",color:"#2a4a6a",padding:"28px 0",fontFamily:"monospace",fontSize:13,lineHeight:1.8}}>
+          Nessun competitor ancora.<br/>Aggiungine uno sopra per iniziare.
+        </div>
+      ):(
+        <>
+          {competitors.map(c=>(
+            <CompetitorRow key={c.id} comp={c} onDelete={deleteCompetitor} onScan={scanContent} onProfile={analyzeProfile} onDiscover={discoverSimilar} scanning={scanning} analyzing={analyzing} discovering={discovering}/>
+          ))}
+          {competitors.length>=2&&(
+            <div style={{marginTop:4}}>
+              <Btn onClick={analyzeAll} loading={batchLoading} color="#a78bfa">
+                {batchLoading?"📊 Analisi comparativa…":`📊 Confronta tutti i ${competitors.length} competitor`}
+              </Btn>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* Video results */}
+      {selectedComp&&(
+        <div style={{marginTop:22}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+            <div style={{fontSize:13,color:"#38bdf8",fontFamily:"monospace",fontWeight:600}}>🎬 {selectedComp.handle}</div>
+            <div style={{fontSize:10,color:"#4a6a8a",fontFamily:"monospace"}}>🟢≥8 🟡≥6 🔴&lt;6</div>
+          </div>
+
+          {scanning===selectedComp.id&&(
+            <div>
+              <Spinner color="#38bdf8" label="Ricerca in corso…"/>
+              {scanLog.length>0&&(
+                <div style={{marginTop:10,background:"#020508",border:"1px solid #1e3a5f",borderRadius:8,padding:10,maxHeight:160,overflowY:"auto"}}>
+                  {scanLog.map((l,i)=>(
+                    <div key={i} style={{fontSize:11,color:l.includes("✅")?"#00ff9d":l.includes("❌")?"#ff6b35":l.includes("⚠️")?"#f59e0b":"#4a6a8a",fontFamily:"monospace",lineHeight:1.6}}>{l}</div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {!scanning&&selectedComp.videos?.length>0&&(
+            selectedComp.videos.map((v,i)=><VideoCard key={i} video={v} onDelete={key=>deleteVideo(selectedComp.id,key)}/>)
+          )}
+
+          {!scanning&&selectedComp.videos?.length===0&&(
+            <div style={{background:"#070f1e",border:"1px dashed #1e3a5f",borderRadius:8,padding:14,marginBottom:10}}>
+              <div style={{color:"#4a6a8a",fontFamily:"monospace",fontSize:12,marginBottom:10}}>
+                Nessun video trovato automaticamente. Puoi incollare link o caption manualmente:
+              </div>
+              <button onClick={()=>setShowManual(!showManual)} style={{background:"none",border:"1px solid #1e3a5f",color:"#7a9bc0",borderRadius:6,padding:"6px 12px",cursor:"pointer",fontSize:12,fontFamily:"monospace",marginBottom:10}}>
+                {showManual?"▲ Nascondi":"📋 Incolla link / caption manualmente"}
+              </button>
+              {showManual&&(
+                <>
+                  <Textarea value={manualLinks} onChange={setManualLinks} placeholder={"Incolla link o caption dei video, uno per riga:\nhttps://tiktok.com/@.../video/123\noppure: 'Mangio solo proteine per 7 giorni - risultati shock'\n..."} rows={5}/>
+                  <Btn onClick={()=>scoreManualLinks(selectedComp)} loading={scanning===selectedComp.id} color="#38bdf8">⭐ Analizza e dai voto</Btn>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* Debug panel always shown after scan */}
+          {!scanning&&(scanLog.length>0||rawResponse)&&(
+            <DebugPanel info={scanLog.join("\n")} rawText={rawResponse}/>
+          )}
+        </div>
+      )}
+
+      {(analyzing||batchLoading)&&<Spinner color="#a78bfa"/>}
+      {profileResult&&(
+        <div style={{marginTop:20}}>
+          <div style={{fontSize:13,color:"#a78bfa",fontFamily:"monospace",fontWeight:600,marginBottom:6}}>{profileTitle}</div>
+          <ResultBox text={profileResult} color="#a78bfa"/>
+        </div>
+      )}
+
+      {/* Similar competitors panel */}
+      {discovering&&<Spinner color="#f59e0b" label={`Ricerca creator simili a ${similarComp?.handle}…`}/>}
+      {similarResult&&!discovering&&(
+        <div style={{marginTop:20}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+            <div style={{fontSize:13,color:"#f59e0b",fontFamily:"monospace",fontWeight:600}}>
+              🌐 Creator simili a {similarComp?.handle}
+            </div>
+            <button onClick={()=>{setSimilarResult("");setSimilarComp(null);}} style={{background:"none",border:"none",color:"#4a6a8a",cursor:"pointer",fontSize:18}}>✕</button>
+          </div>
+          <div style={{background:"linear-gradient(135deg,#0a1628,#0d1f3c)",...glow("#f59e0b"),borderRadius:12,padding:16,fontSize:13,color:"#c8d8f0",lineHeight:1.8,whiteSpace:"pre-wrap",maxHeight:500,overflowY:"auto"}}>
+            {similarResult}
+          </div>
+          <div style={{marginTop:12}}>
+            <div style={{fontSize:11,color:"#4a6a8a",fontFamily:"monospace",marginBottom:8}}>
+              Vuoi aggiungere uno di questi alla tua lista? Copia l'handle e incollalo sopra.
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── APP ──────────────────────────────────────────────────────────
+export default function App() {
+  const [activeTab,setActiveTab]=useState("trend");
+  const [provider,setProvider]=useState("anthropic");
+  useEffect(()=>{ setActiveProvider(provider); }, [provider]);
+  const activeColor=TAB_COLORS[activeTab];
+  return (
+    <div style={{minHeight:"100vh",background:"#04080f",fontFamily:"'Georgia','Times New Roman',serif",paddingBottom:60,backgroundImage:`radial-gradient(ellipse at 20% 50%,#00ff9d08,transparent 50%),radial-gradient(ellipse at 80% 20%,#a78bfa08,transparent 50%)`}}>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}@keyframes slideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:#070f1e}::-webkit-scrollbar-thumb{background:#1e3a5f;border-radius:2px}select option{background:#070f1e}textarea::placeholder,input::placeholder{color:#2a4a6a}`}</style>
+
+      <div style={{padding:"22px 16px 18px",borderBottom:"1px solid #0e2040",background:"linear-gradient(180deg,#060d1a,transparent)"}}>
+        <div style={{maxWidth:700,margin:"0 auto"}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
+            <div style={{width:8,height:8,borderRadius:"50%",background:"#00ff9d",animation:"pulse 2s ease-in-out infinite",boxShadow:"0 0 12px #00ff9d"}}/>
+            <span style={{fontSize:10,color:"#00ff9d",letterSpacing:3,textTransform:"uppercase",fontFamily:"monospace"}}>Content Intelligence System</span>
+          </div>
+          <h1 style={{fontSize:26,fontWeight:700,color:"#e8f4ff",margin:0,fontFamily:"'Georgia',serif"}}>ViralOS</h1>
+          <p style={{color:"#4a6a8a",fontSize:12,margin:"4px 0 0",fontFamily:"monospace"}}>Il tuo co-pilota AI per contenuti che esplodono</p>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginTop:10,flexWrap:"wrap"}}>
+            <span style={{fontSize:10,color:"#4a6a8a",letterSpacing:2,textTransform:"uppercase",fontFamily:"monospace"}}>LLM</span>
+            <select value={provider} onChange={e=>setProvider(e.target.value)} style={{padding:"6px 10px",background:"#070f1e",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:12,outline:"none",fontFamily:"monospace"}}>
+              {PROVIDERS.map(p=><option key={p.id} value={p.id}>{p.label}</option>)}
+            </select>
+            <span style={{fontSize:10,color:"#2a4a6a",fontFamily:"monospace"}}>{PROVIDERS.find(p=>p.id===provider)?.defaultModel}</span>
+          </div>
+        </div>
+      </div>
+
+      <div style={{maxWidth:700,margin:"0 auto",padding:"0 12px"}}>
+        <div style={{display:"flex",gap:6,marginTop:16,marginBottom:18,overflowX:"auto",paddingBottom:4}}>
+          {TABS.map(tab=>{
+            const isActive=activeTab===tab.id; const color=TAB_COLORS[tab.id];
+            return <button key={tab.id} onClick={()=>setActiveTab(tab.id)} style={{flexShrink:0,padding:"10px 14px",borderRadius:9,border:isActive?`1px solid ${color}66`:"1px solid #0e2040",background:isActive?`linear-gradient(135deg,${color}18,${color}08)`:"#060d1a",color:isActive?color:"#4a6a8a",fontSize:12,fontWeight:600,cursor:"pointer",transition:"all .2s",fontFamily:"monospace",display:"flex",alignItems:"center",gap:6,whiteSpace:"nowrap"}}>
+              <span style={{fontSize:16}}>{tab.icon}</span><span>{tab.label}</span>
+            </button>;
+          })}
+        </div>
+        <div style={{background:"linear-gradient(135deg,#070f1e,#0a1628)",...glow(activeColor),borderRadius:14,padding:"18px 14px",animation:"slideIn .25s ease-out"}}>
+          <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:18}}>
+            <span style={{fontSize:18}}>{TABS.find(t=>t.id===activeTab)?.icon}</span>
+            <h2 style={{margin:0,fontSize:17,color:activeColor,fontFamily:"monospace",letterSpacing:.5}}>{TABS.find(t=>t.id===activeTab)?.label}</h2>
+          </div>
+          {activeTab==="trend"&&<TrendScanner/>}
+          {activeTab==="hook"&&<HookGenerator/>}
+          {activeTab==="strategy"&&<VideoStrategy/>}
+          {activeTab==="viral"&&<ViralFormula/>}
+          {activeTab==="competitors"&&<Competitors/>}
+        </div>
+        <p style={{textAlign:"center",color:"#1e3a5f",fontSize:10,marginTop:16,fontFamily:"monospace"}}>Powered by Claude AI · Dati salvati in modo persistente</p>
+      </div>
+    </div>
+  );
+}
