@@ -13,10 +13,6 @@ const TAB_COLORS = { trend:"#00ff9d", hook:"#ff6b35", strategy:"#a78bfa", viral:
 const glow = (c="#00ff9d") => ({ boxShadow:`0 0 20px ${c}22,0 0 40px ${c}11`, border:`1px solid ${c}44` });
 
 // ─── LLM API (Netlify Function) ───────────────────────────────────────────────────
-const PROVIDERS = [
-  { id:"anthropic", label:"Claude", defaultModel:"claude-sonnet-4-20250514" },
-  { id:"gemini", label:"Gemini", defaultModel:"gemini-2.5-flash" },
-];
 
 async function callLLM({provider="gemini", prompt, system, useSearch=false, model}) {
   const body = {
@@ -39,8 +35,7 @@ async function callLLM({provider="gemini", prompt, system, useSearch=false, mode
   }
 }
 
-let ACTIVE_PROVIDER = "gemini";
-const setActiveProvider = (provider) => { ACTIVE_PROVIDER = provider; };
+const ACTIVE_PROVIDER = "gemini";
 
 async function callClaude(prompt, system, useSearch=false) {
   return callLLM({ provider: ACTIVE_PROVIDER, prompt, system, useSearch });
@@ -702,8 +697,6 @@ Trova almeno 5-8 profili reali e verificabili. Rispondi in italiano.`,
 // ─── APP ──────────────────────────────────────────────────────────
 export default function App() {
   const [activeTab,setActiveTab]=useState("competitors");
-  const [provider,setProvider]=useState("gemini");
-  useEffect(()=>{ setActiveProvider(provider); }, [provider]);
   const activeColor=TAB_COLORS[activeTab];
   return (
     <div style={{minHeight:"100vh",background:"#04080f",fontFamily:"'Georgia','Times New Roman',serif",paddingBottom:60,backgroundImage:`radial-gradient(ellipse at 20% 50%,#00ff9d08,transparent 50%),radial-gradient(ellipse at 80% 20%,#a78bfa08,transparent 50%)`}}>
@@ -717,13 +710,6 @@ export default function App() {
           </div>
           <h1 style={{fontSize:26,fontWeight:700,color:"#e8f4ff",margin:0,fontFamily:"'Georgia',serif"}}>ViralOS</h1>
           <p style={{color:"#4a6a8a",fontSize:12,margin:"4px 0 0",fontFamily:"monospace"}}>Il tuo co-pilota AI per contenuti che esplodono</p>
-          <div style={{display:"flex",alignItems:"center",gap:8,marginTop:10,flexWrap:"wrap"}}>
-            <span style={{fontSize:10,color:"#4a6a8a",letterSpacing:2,textTransform:"uppercase",fontFamily:"monospace"}}>LLM</span>
-            <select value={provider} onChange={e=>setProvider(e.target.value)} style={{padding:"6px 10px",background:"#070f1e",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:12,outline:"none",fontFamily:"monospace"}}>
-              {PROVIDERS.map(p=><option key={p.id} value={p.id}>{p.label}</option>)}
-            </select>
-            <span style={{fontSize:10,color:"#2a4a6a",fontFamily:"monospace"}}>{PROVIDERS.find(p=>p.id===provider)?.defaultModel}</span>
-          </div>
         </div>
       </div>
 
