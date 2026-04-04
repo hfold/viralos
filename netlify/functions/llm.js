@@ -64,7 +64,7 @@ exports.handler = async (event) => {
         return json(500, { error: { message: "GEMINI_API_KEY not set" } });
       }
 
-      const modelName = model || process.env.GEMINI_MODEL || "gemini-1.5-flash";
+      const modelName = model || process.env.GEMINI_MODEL || "gemini-2.5-flash";
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKey}`;
       const contentText = system ? `${system}\n\n${prompt}` : prompt;
       const body = {

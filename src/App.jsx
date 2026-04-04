@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 
 const TABS = [
-  { id:"trend", label:"Trend", icon:"📡" },
-  { id:"hook", label:"Hook", icon:"🎣" },
-  { id:"strategy", label:"Strategia", icon:"🎬" },
-  { id:"viral", label:"Virale", icon:"🔥" },
-  { id:"competitors", label:"Competitor", icon:"🕵️" },
+    { id:"competitors", label:"Competitor", icon:"🕵️" },
+    { id:"trend", label:"Trend", icon:"📡" },
+    { id:"hook", label:"Hook", icon:"🎣" },
+    { id:"strategy", label:"Strategia", icon:"🎬" },
+    { id:"viral", label:"Virale", icon:"🔥" },
 ];
 const NICHES = ["Nutrizione","Fitness","Benessere mentale","Cucina sana","Dimagrimento","Sport & Performance"];
 const PLATFORMS = ["TikTok","Instagram Reels","YouTube Shorts","LinkedIn"];
@@ -15,10 +15,10 @@ const glow = (c="#00ff9d") => ({ boxShadow:`0 0 20px ${c}22,0 0 40px ${c}11`, bo
 // ─── LLM API (Netlify Function) ───────────────────────────────────────────────────
 const PROVIDERS = [
   { id:"anthropic", label:"Claude", defaultModel:"claude-sonnet-4-20250514" },
-  { id:"gemini", label:"Gemini", defaultModel:"gemini-1.5-flash" },
+  { id:"gemini", label:"Gemini", defaultModel:"gemini-2.5-flash" },
 ];
 
-async function callLLM({provider="anthropic", prompt, system, useSearch=false, model}) {
+async function callLLM({provider="gemini", prompt, system, useSearch=false, model}) {
   const body = {
     provider,
     prompt,
@@ -39,7 +39,7 @@ async function callLLM({provider="anthropic", prompt, system, useSearch=false, m
   }
 }
 
-let ACTIVE_PROVIDER = "anthropic";
+let ACTIVE_PROVIDER = "gemini";
 const setActiveProvider = (provider) => { ACTIVE_PROVIDER = provider; };
 
 async function callClaude(prompt, system, useSearch=false) {
@@ -175,51 +175,28 @@ function Btn({onClick,loading,children,color="#00ff9d",small=false}) {
 
 // ─── TREND ────────────────────────────────────────────────────────
 function TrendScanner() {
-  const [niche,setNiche]=useState("Nutrizione"); const [rawData,setRawData]=useState("");
-  const [loading,setLoading]=useState(false); const [result,setResult]=useState(""); const [mode,setMode]=useState("real");
-  const runReal = async () => {
-    if(!rawData.trim()) return; setLoading(true); setResult("");
-    const {text} = await callClaude(`Nicchia: ${niche}\nDati:\n${rawData}`,`Sei un esperto di content marketing virale. Analizza questi dati REALI:\n1. 🔥 I 5 TREND PIÙ FORTI\n2. 🎯 COME USARLI nella nicchia "${niche}"\n3. ⚡ URGENZA\n4. 💡 3 IDEE VIDEO PRONTE\nRispondi in italiano.`);
-    setResult(text); setLoading(false);
-  };
+  const [niche,setNiche]=useState("Nutrizione");
+  const [loading,setLoading]=useState(false); const [result,setResult]=useState("");
   const runAI = async () => {
     setLoading(true); setResult("");
-    const {text} = await callClaude(`Nicchia: ${niche}`,`Genera trend PROBABILI:\n1. 🔥 TOP 5 TREND\n2. 📊 3 ANGOLI VIRALI\n3. 🎯 TARGET PSICOLOGICO\n⚠️ Specifica che sono stime AI. Rispondi in italiano.`);
+    const {text} = await callClaude(`Nicchia: ${niche}`,`Genera trend PROBABILI:
+1. ?? TOP 5 TREND
+2. ?? 3 ANGOLI VIRALI
+3. ?? TARGET PSICOLOGICO
+?? Specifica che sono stime AI. Rispondi in italiano.`);
     setResult(text); setLoading(false);
   };
   return (
     <div>
-      <div style={{display:"flex",gap:8,marginBottom:18}}>
-        {[{id:"real",label:"🌐 Dati Reali",desc:"Incolla da TikTok"},{id:"ai",label:"🤖 Solo AI",desc:"Trend probabili"}].map(m=>(
-          <button key={m.id} onClick={()=>{setMode(m.id);setResult("");}} style={{flex:1,padding:"10px 8px",borderRadius:8,cursor:"pointer",border:mode===m.id?"1px solid #00ff9d66":"1px solid #1e3a5f",background:mode===m.id?"#00ff9d12":"#070f1e",color:mode===m.id?"#00ff9d":"#4a6a8a",fontFamily:"monospace",fontSize:12,fontWeight:600}}>
-            <div>{m.label}</div><div style={{fontSize:10,opacity:.7,marginTop:2}}>{m.desc}</div>
-          </button>
-        ))}
-      </div>
       <Sel value={niche} onChange={setNiche} options={NICHES} label="Nicchia"/>
-      {mode==="real"?(
-        <>
-          <div style={{background:"#070f1e",border:"1px solid #1e3a5f",borderRadius:10,padding:14,marginBottom:14}}>
-            <div style={{fontSize:10,color:"#00ff9d",letterSpacing:2,textTransform:"uppercase",marginBottom:8,fontFamily:"monospace"}}>Passo 1 — Apri TikTok Creative Center</div>
-            <a href="https://ads.tiktok.com/business/creativecenter/inspiration/popular/hashtag/pc/it?period=7&country=IT" target="_blank" rel="noopener noreferrer" style={{display:"inline-block",padding:"9px 16px",background:"#00ff9d15",border:"1px solid #00ff9d44",color:"#00ff9d",borderRadius:7,fontSize:13,textDecoration:"none",fontFamily:"monospace",fontWeight:600}}>🔗 Apri Creative Center →</a>
-          </div>
-          <div style={{marginBottom:14}}>
-            <label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Passo 2 — Incolla i dati trovati</label>
-            <Textarea value={rawData} onChange={setRawData} placeholder={"es:\n#dieta 45M views +120%\n#colazione proteica 12M views\n..."} rows={5}/>
-          </div>
-          <Btn onClick={runReal} loading={loading} color="#00ff9d">{loading?"Analisi…":"📡 Analizza Trend Reali"}</Btn>
-        </>
-      ):(
-        <>
-          <div style={{background:"#2a1a0a",border:"1px solid #f59e0b44",borderRadius:8,padding:"10px 14px",marginBottom:14,fontSize:12,color:"#f59e0b",fontFamily:"monospace"}}>⚠️ Trend probabili AI, non dati real-time.</div>
-          <Btn onClick={runAI} loading={loading} color="#00ff9d">{loading?"Generazione…":"🤖 Genera Trend AI"}</Btn>
-        </>
-      )}
+      <div style={{background:"#2a1a0a",border:"1px solid #f59e0b44",borderRadius:8,padding:"10px 14px",marginBottom:14,fontSize:12,color:"#f59e0b",fontFamily:"monospace"}}>?? Trend probabili AI, non dati real-time.</div>
+      <Btn onClick={runAI} loading={loading} color="#00ff9d">{loading?"Generazione?":"?? Genera Trend AI"}</Btn>
       {loading&&<Spinner/>}
       <ResultBox text={result} color="#00ff9d"/>
     </div>
   );
 }
+
 
 // ─── HOOK ─────────────────────────────────────────────────────────
 function HookGenerator() {
@@ -674,7 +651,7 @@ Trova almeno 5-8 profili reali e verificabili. Rispondi in italiano.`,
 // ─── APP ──────────────────────────────────────────────────────────
 export default function App() {
   const [activeTab,setActiveTab]=useState("trend");
-  const [provider,setProvider]=useState("anthropic");
+  const [provider,setProvider]=useState("gemini");
   useEffect(()=>{ setActiveProvider(provider); }, [provider]);
   const activeColor=TAB_COLORS[activeTab];
   return (
