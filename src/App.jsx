@@ -334,18 +334,16 @@ function VideoCard({video,onDelete}) {
 }
 
 // Search strategies
-function buildSearchQueries(handle, platform, niche="") {
+function buildSearchQueries(handle, platform, keywords="") {
   const h = handle.replace("@", "");
-  const n = niche ? ` ${niche}` : "";
+  const k = keywords ? ` ${keywords}` : "";
   if(platform==="TikTok") return [
-    { label:"profilo + video", q:`site:tiktok.com/@${h} video tiktok${n}` },
-    { label:"profilo diretto", q:`site:tiktok.com/@${h} tiktok${n}` },
-    { label:"@handle", q:`"@${h}" tiktok video${n}` },
+    { label:"site + handle", q:`site:tiktok.com/@${h} tiktok${k}` },
+    { label:"handle libero", q:`@${h} tiktok${k}` },
   ];
   return [
-    { label:"profilo diretto", q:`site:instagram.com/${h}/ instagram${n}` },
-    { label:"post del profilo", q:`site:instagram.com/${h}/p/ instagram${n}` },
-    { label:"@handle", q:`"@${h}" instagram reel${n}` },
+    { label:"site + handle", q:`site:instagram.com/${h}/ instagram${k}` },
+    { label:"handle libero", q:`@${h} instagram${k}` },
   ];
 }
 
@@ -430,6 +428,7 @@ function CompetitorRow({comp,onDelete,onScan,onProfile,onDiscover,scanning,analy
 function Competitors() {
   const [competitors,setCompetitors]=useState([]);
   const [handle,setHandle]=useState(""); const [platform,setPlatform]=useState("TikTok"); const [niche,setNiche]=useState("Nutrizione");
+  const [searchKeywords,setSearchKeywords]=useState("");
   const [scanning,setScanning]=useState(null); const [analyzing,setAnalyzing]=useState(null); const [discovering,setDiscovering]=useState(null); const [batchLoading,setBatchLoading]=useState(false);
   const [similarResult,setSimilarResult]=useState(""); const [similarComp,setSimilarComp]=useState(null);
   const [selectedComp,setSelectedComp]=useState(null);
@@ -446,8 +445,9 @@ function Competitors() {
   const addCompetitor = async () => {
     if(!handle.trim()) return;
     const clean=handle.replace(/^@/,"").replace(/https?:\/\/(www\.)?(instagram|tiktok)\.com\//,"").replace(/\?.*/,"").replace(/\//g,"");
-    await persist([...competitors,{id:Date.now().toString(),handle:"@"+clean,platform,niche,addedAt:Date.now(),lastScan:null,videos:[]}]);
+    await persist([...competitors,{id:Date.now().toString(),handle:"@"+clean,platform,niche,searchKeywords:searchKeywords.trim(),addedAt:Date.now(),lastScan:null,videos:[]}]);
     setHandle("");
+    setSearchKeywords("");
   };
 
   const deleteCompetitor = async (id) => {
@@ -465,7 +465,7 @@ function Competitors() {
   const scanContent = async (comp) => {
     setScanning(comp.id); setSelectedComp({...comp,videos:[]}); setProfileResult("");
     setProfileTitle(""); setScanLog([]); setRawResponse(""); setShowManual(false);
-    const queries = buildSearchQueries(comp.handle, comp.platform, comp.niche);
+    const queries = buildSearchQueries(comp.handle, comp.platform, comp.searchKeywords || "");
     let allVideos = [];
     const log = [];
 
@@ -612,6 +612,10 @@ Trova almeno 5-8 profili reali e verificabili. Rispondi in italiano.`,
         <div style={{marginBottom:10}}>
           <label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Handle o URL profilo</label>
           <input value={handle} onChange={e=>setHandle(e.target.value)} placeholder="@beardedscara o URL" onKeyDown={e=>e.key==="Enter"&&addCompetitor()} style={{width:"100%",padding:"10px 12px",background:"#04080f",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
+        </div>
+        <div style={{marginBottom:10}}>
+          <label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Parole chiave (opzionale)</label>
+          <input value={searchKeywords} onChange={e=>setSearchKeywords(e.target.value)} placeholder="es. beard tips viaggio germany" style={{width:"100%",padding:"10px 12px",background:"#04080f",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
         </div>
         <div style={{display:"flex",gap:8,marginBottom:12}}>
           <div style={{flex:1}}>
