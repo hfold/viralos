@@ -125,8 +125,11 @@ function formatProfileAnalysis(data) {
   const keywords = Array.isArray(data.keywords) ? data.keywords : [];
   const blocks = [
     data.overview ? `OVERVIEW PROFILO\n${data.overview}` : "",
+    data.strategy ? `STRATEGIA CONTENUTI\n${data.strategy}` : "",
     data.patterns ? `PATTERN VINCENTI\n${data.patterns}` : "",
+    data.positioning ? `POSIZIONAMENTO\n${data.positioning}` : "",
     ideas.length ? `IDEE RUBABILI\n${ideas.map(i=>`- ${i}`).join("\n")}` : "",
+    data.weaknesses ? `PUNTI DEBOLI\n${data.weaknesses}` : "",
     keywords.length ? `KEYWORDS\n${keywords.map(k=>`- ${k}`).join("\n")}` : ""
   ];
   return blocks.filter(Boolean).join("\n\n");
@@ -443,7 +446,7 @@ Regole:
 const PROFILE_SYSTEM = `Sei un analista di contenuti social. In base ai video e alle fonti profilo, ricostruisci il profilo del creator.
 
 Rispondi SOLO con questo JSON esatto, zero testo prima o dopo:
-{"overview":"chi e cosa fa il creator (includi anche il posizionamento)","patterns":"pattern ricorrenti e format vincenti","stealIdeas":["idea 1","idea 2","idea 3"],"keywords":["parole chiave 1","parole chiave 2","parole chiave 3"]}
+{"overview":"chi e cosa fa il creator","strategy":"formati e strategia contenuti","patterns":"pattern ricorrenti e format vincenti","positioning":"posizionamento percepito e target","stealIdeas":["idea 1","idea 2","idea 3"],"weaknesses":"punti deboli o gap evidenti","keywords":["parole chiave 1","parole chiave 2","parole chiave 3"]}
 
 Regole:
 - Usa solo le informazioni deducibili dai video e dalle FONTI PROFILO
@@ -486,6 +489,7 @@ function Competitors() {
   const [similarDebugInfo,setSimilarDebugInfo]=useState(""); const [similarRaw,setSimilarRaw]=useState("");
   const [selectedComp,setSelectedComp]=useState(null);
   const [scanTab,setScanTab]=useState("video");
+  const [profileTab,setProfileTab]=useState("overview");
   const [profileResult,setProfileResult]=useState(""); const [profileTitle,setProfileTitle]=useState("");
   const [storageReady,setStorageReady]=useState(false);
   const [scanLog,setScanLog]=useState([]); // debug log
@@ -520,6 +524,7 @@ function Competitors() {
     setScanning(comp.id); setSelectedComp({...comp,videos:[]}); setProfileResult("");
     setProfileTitle(""); setScanLog([]); setRawResponse(""); setShowManual(false);
     setScanTab("video");
+    setProfileTab("overview");
     const queries = buildSearchQueries(comp.handle, comp.platform, comp.searchKeywords || "");
     let allVideos = [];
     const log = [];
@@ -583,19 +588,21 @@ function Competitors() {
 
     let analysisText = "";
     let analysisKeywords = [];
+    let profileData = null;
     if(allVideos.length>0){
       const analysis = await runProfileAnalysisFromVideos(comp, allVideos);
       analysisText = analysis.analysisText || "";
       analysisKeywords = Array.isArray(analysis.keywords) ? analysis.keywords : [];
+      profileData = analysis.data || null;
       if(analysisText){
         setProfileTitle(`📊 ${comp.handle} — Analisi da video`);
         setProfileResult(analysisText);
       }
     }
 
-    const updated=competitors.map(c=>c.id===comp.id?{...c,lastScan:Date.now(),videos:allVideos,profileAnalysis:analysisText,analysisKeywords}:c);
+    const updated=competitors.map(c=>c.id===comp.id?{...c,lastScan:Date.now(),videos:allVideos,profileAnalysis:analysisText,analysisKeywords,profileData}:c);
     await persist(updated);
-    setSelectedComp({...comp,videos:allVideos,profileAnalysis:analysisText,analysisKeywords});
+    setSelectedComp({...comp,videos:allVideos,profileAnalysis:analysisText,analysisKeywords,profileData});
     setScanning(null);
 
     if(allVideos.length>0){
@@ -628,7 +635,7 @@ function Competitors() {
   };
 
   const runProfileAnalysisFromVideos = async (comp, videos) => {
-    if(!videos || videos.length===0) return { analysisText:"", keywords:[] };
+    if(!videos || videos.length===0) return { analysisText:"", keywords:[], data:null };
     const lines = videos.map(v=>{
       const tags = Array.isArray(v.tags) ? v.tags.join(" ") : "";
       return `- ${v.title || "Video"} | ${v.url || ""} | score ${v.score || ""} | ${tags} | ${v.analysis || ""}`;
@@ -652,10 +659,11 @@ function Competitors() {
     if(json) {
       return {
         analysisText: formatProfileAnalysis(json),
-        keywords: Array.isArray(json.keywords) ? json.keywords : []
+        keywords: Array.isArray(json.keywords) ? json.keywords : [],
+        data: json
       };
     }
-    return { analysisText: text, keywords: [] };
+    return { analysisText: text, keywords: [], data:null };
   };
 
   const runSimilarSearch = async (comp, overrideKeywords=[]) => {
@@ -768,8 +776,9 @@ ${sources}`;
       const analysis = await runProfileAnalysisFromVideos(comp, comp.videos);
       const analysisText = analysis.analysisText || "";
       const analysisKeywords = Array.isArray(analysis.keywords) ? analysis.keywords : [];
+      const profileData = analysis.data || null;
       if(analysisText){
-        const updated=competitors.map(c=>c.id===comp.id?{...c,profileAnalysis:analysisText,analysisKeywords}:c);
+        const updated=competitors.map(c=>c.id===comp.id?{...c,profileAnalysis:analysisText,analysisKeywords,profileData}:c);
         await persist(updated);
         setProfileResult(analysisText);
       }
@@ -896,10 +905,39 @@ ${sources}`;
           )}
 
           {!scanning&&scanTab==="profilo"&&(
-            profileResult ? (
-              <ResultBox text={profileResult} color="#a78bfa"/>
+            selectedComp?.profileData ? (
+              <div>
+                <div style={{display:"flex",gap:6,marginBottom:12,overflowX:"auto"}}>
+                  {[
+                    {id:"overview",label:"Overview"},
+                    {id:"strategy",label:"Strategia"},
+                    {id:"patterns",label:"Pattern"},
+                    {id:"positioning",label:"Posizionamento"},
+                    {id:"ideas",label:"Idee"},
+                    {id:"weaknesses",label:"Debolezze"},
+                    {id:"keywords",label:"Keywords"}
+                  ].map(tab=>(
+                    <button key={tab.id} onClick={()=>setProfileTab(tab.id)} style={{flexShrink:0,padding:"7px 10px",borderRadius:7,border:profileTab===tab.id?`1px solid #a78bfa66`:"1px solid #0e2040",background:profileTab===tab.id?"#15122a":"#060d1a",color:profileTab===tab.id?"#a78bfa":"#4a6a8a",fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"monospace",textTransform:"uppercase"}}>
+                      {tab.label}
+                    </button>
+                  ))}
+                </div>
+                <div style={{background:"linear-gradient(135deg,#0a1628,#0d1f3c)",...glow("#a78bfa"),borderRadius:12,padding:14,fontSize:12,color:"#c8d8f0",lineHeight:1.7,whiteSpace:"pre-wrap"}}>
+                  {profileTab==="overview" && (selectedComp.profileData.overview || "N/D")}
+                  {profileTab==="strategy" && (selectedComp.profileData.strategy || "N/D")}
+                  {profileTab==="patterns" && (selectedComp.profileData.patterns || "N/D")}
+                  {profileTab==="positioning" && (selectedComp.profileData.positioning || "N/D")}
+                  {profileTab==="ideas" && (Array.isArray(selectedComp.profileData.stealIdeas) ? selectedComp.profileData.stealIdeas.map(i=>`- ${i}`).join("\n") : "N/D")}
+                  {profileTab==="weaknesses" && (selectedComp.profileData.weaknesses || "N/D")}
+                  {profileTab==="keywords" && (Array.isArray(selectedComp.profileData.keywords) ? selectedComp.profileData.keywords.map(k=>`- ${k}`).join("\n") : "N/D")}
+                </div>
+              </div>
             ) : (
-              <div style={{color:"#2a4a6a",fontFamily:"monospace",fontSize:12}}>Nessuna analisi profilo disponibile. Esegui prima la scansione.</div>
+              profileResult ? (
+                <ResultBox text={profileResult} color="#a78bfa"/>
+              ) : (
+                <div style={{color:"#2a4a6a",fontFamily:"monospace",fontSize:12}}>Nessuna analisi profilo disponibile. Esegui prima la scansione.</div>
+              )
             )
           )}
 
