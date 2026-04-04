@@ -396,6 +396,22 @@ function buildSimilarQueries(platform, keywords="") {
   ];
 }
 
+function extractHandleFromUrl(url, platform) {
+  if(!url) return "";
+  try {
+    const u = new URL(url);
+    if(platform==="TikTok") {
+      const m = u.pathname.match(/\/@([^/]+)/);
+      return m ? `@${m[1]}` : "";
+    }
+    if(platform==="Instagram") {
+      const parts = u.pathname.split("/").filter(Boolean);
+      return parts.length ? `@${parts[0]}` : "";
+    }
+  } catch {}
+  return "";
+}
+
 function filterVideosByHandle(videos, handle, platform) {
   const h = (handle||"").replace(/^@/, "").toLowerCase();
   if(!h) return videos;
@@ -753,8 +769,14 @@ FONTI (usa solo queste, non inventare URL):
 ${sources}`;
     const { text, error } = await callLLM({ provider: ACTIVE_PROVIDER, prompt: fullPrompt, system });
 
-    if (error) {
-      setSimilarResult(`Errore LLM: ${error.message || "Impossibile completare"}`);
+    if (error || !text || !text.trim()) {
+      const map = new Map();
+      for (const r of allResults) {
+        const handle = extractHandleFromUrl(r.url, comp.platform) || r.title || r.url;
+        if(!map.has(handle)) map.set(handle, r.url);
+      }
+      const list = Array.from(map.entries()).slice(0, 12).map(([h,u])=>`- ${h}\n  ${u}`).join("\n");
+      setSimilarResult(`Non ho potuto generare l'analisi dettagliata. Ecco i profili trovati dalle fonti:\n\n${list || "Nessun profilo."}`);
     } else {
       setSimilarResult(text);
     }
