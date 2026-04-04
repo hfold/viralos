@@ -102,8 +102,46 @@ function extractVideos(rawText) {
   return { videos:[], debugInfo };
 }
 
-async function callSearchLLM(prompt, system) {
-  return callLLM({ provider: "anthropic", prompt, system, useSearch: true });
+async function tavilySearch({query, maxResults=6, searchDepth="basic", includeDomains, excludeDomains, timeRange}) {
+  try {
+    const r = await fetch("/.netlify/functions/search",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({
+        query,
+        max_results: maxResults,
+        search_depth: searchDepth,
+        include_domains: includeDomains,
+        exclude_domains: excludeDomains,
+        time_range: timeRange
+      })
+    });
+    const data = await r.json();
+    if(!r.ok) return { results: [], raw: data, error: data.error || data };
+    return { results: data.results || [], raw: data, error: null };
+  } catch (e) {
+    return { results: [], raw: null, error: { message: e.message || "Network error" } };
+  }
+}
+
+async function callSearchLLM({query, prompt, system, maxResults=6, searchDepth="basic", includeDomains}) {
+  const search = await tavilySearch({query, maxResults, searchDepth, includeDomains});
+  if(search.error){
+    return { text: "", raw: search.raw, error: search.error };
+  }
+  const sources = (search.results || []).map((r,i)=>{
+    const title = r.title || `Risultato ${i+1}`;
+    const url = r.url || "";
+    const snippet = (r.content || r.snippet || "").slice(0,400);
+    return `[${i+1}] ${title}
+${url}
+${snippet}`;
+  }).join("\n\n");
+  const fullPrompt = `${prompt}
+
+FONTI (usa solo queste, non inventare URL):
+${sources || "Nessun risultato."}`;
+  return callLLM({ provider: ACTIVE_PROVIDER, prompt: fullPrompt, system });
 }
 
 
@@ -183,7 +221,7 @@ function TrendScanner() {
 1.  TOP 5 TREND
 2.  3 ANGOLI VIRALI
 3.  TARGET PSICOLOGICO
- Specifica che sono stime AI. Rispondi in italiano.`);
+ Specifica che sono stime AI. Rispondi in italiano.`});
     setResult(text); setLoading(false);
   };
   return (
@@ -204,7 +242,7 @@ function HookGenerator() {
   const [hookType,setHookType]=useState("Curiosità"); const [loading,setLoading]=useState(false); const [result,setResult]=useState("");
   const run = async () => {
     if(!topic) return; setLoading(true); setResult("");
-    const {text} = await callClaude(`Argomento: ${topic}\nPiattaforma: ${platform}\nTipo: ${hookType}`,`Sei un esperto di copywriting virale. Genera:\n1. 🎣 10 HOOK che fermano lo scroll\n2. 🗣️ SCRIPT APERTURA per i 3 migliori (15 sec)\n3. 🎭 VARIANTI TONO\n4. 📱 TESTO SOVRIMPRESSO\nRispondi in italiano.`);
+    const {text} = await callClaude(`Argomento: ${topic}\nPiattaforma: ${platform}\nTipo: ${hookType}`,`Sei un esperto di copywriting virale. Genera:\n1. 🎣 10 HOOK che fermano lo scroll\n2. 🗣️ SCRIPT APERTURA per i 3 migliori (15 sec)\n3. 🎭 VARIANTI TONO\n4. 📱 TESTO SOVRIMPRESSO\nRispondi in italiano.`});
     setResult(text); setLoading(false);
   };
   return (
@@ -225,7 +263,7 @@ function VideoStrategy() {
   const [platform,setPlatform]=useState("Instagram Reels"); const [loading,setLoading]=useState(false); const [result,setResult]=useState("");
   const run = async () => {
     if(!goal) return; setLoading(true); setResult("");
-    const {text} = await callClaude(`Obiettivo: ${goal}\nTarget: ${audience||"n/a"}\nPiattaforma: ${platform}`,`Sei uno stratega di content marketing. Crea:\n1. 🎬 STRUTTURA VIDEO secondo per secondo\n2. 📋 PIANO EDITORIALE 30 GIORNI\n3. 🔁 FRAMEWORK RIPETIBILE\n4. 📈 KPI E METRICHE\n5. 🤝 CTA STRATEGY\nRispondi in italiano.`);
+    const {text} = await callClaude(`Obiettivo: ${goal}\nTarget: ${audience||"n/a"}\nPiattaforma: ${platform}`,`Sei uno stratega di content marketing. Crea:\n1. 🎬 STRUTTURA VIDEO secondo per secondo\n2. 📋 PIANO EDITORIALE 30 GIORNI\n3. 🔁 FRAMEWORK RIPETIBILE\n4. 📈 KPI E METRICHE\n5. 🤝 CTA STRATEGY\nRispondi in italiano.`});
     setResult(text); setLoading(false);
   };
   return (
@@ -245,7 +283,7 @@ function ViralFormula() {
   const [videoIdea,setVideoIdea]=useState(""); const [loading,setLoading]=useState(false); const [result,setResult]=useState("");
   const run = async () => {
     if(!videoIdea) return; setLoading(true); setResult("");
-    const {text} = await callClaude(`Idea: ${videoIdea}`,`Sei un esperto di psicologia virale. Analizza:\n1. 🧠 SCORE VIRALE /10\n2. ⚗️ INGREDIENTI MANCANTI\n3. 🔄 RIFORMULAZIONE OTTIMIZZATA\n4. 💬 5 VARIANTI TITOLO A/B\n5. 🎭 STRUTTURA EMOTIVA\n6. 📣 AMPLIFICATORI\nRispondi in italiano.`);
+    const {text} = await callClaude(`Idea: ${videoIdea}`,`Sei un esperto di psicologia virale. Analizza:\n1. 🧠 SCORE VIRALE /10\n2. ⚗️ INGREDIENTI MANCANTI\n3. 🔄 RIFORMULAZIONE OTTIMIZZATA\n4. 💬 5 VARIANTI TITOLO A/B\n5. 🎭 STRUTTURA EMOTIVA\n6. 📣 AMPLIFICATORI\nRispondi in italiano.`});
     setResult(text); setLoading(false);
   };
   return (
@@ -338,9 +376,9 @@ async function validateProfileUrls(videos, platform) {
 }
 
 
-const SCAN_SYSTEM = `Sei un analista di contenuti social con accesso alla web search. Il tuo compito è trovare video/reel pubblicati dal profilo indicato.
+const SCAN_SYSTEM = `Sei un analista di contenuti social. Il tuo compito e trovare video/reel pubblicati dal profilo indicato.
 
-Usa la web search con la query fornita. Analizza i risultati e per ogni video/reel trovato con URL specifico estrai le informazioni.
+Usa solo le FONTI fornite. Analizza i risultati e per ogni video/reel trovato con URL specifico estrai le informazioni.
 
 IMPORTANTISSIMO: rispondi SOLO con questo JSON esatto, zero testo prima o dopo:
 {"videos":[{"title":"titolo o caption del video","url":"https://url-diretto","score":7,"tags":["#hashtag1","#hashtag2"],"analysis":"1-2 frasi sul potenziale virale"}],"searchNote":"cosa hai trovato o non trovato"}
@@ -351,8 +389,9 @@ Regole:
 - Per Instagram accetta solo URL che contengono instagram.com/handle
 - score da 1-10 basato su hook del titolo, emozione, tema trending
 - se non trovi video con URL specifici restituisci {"videos":[],"searchNote":"motivo"}
-- NON inventare URL, usa solo quelli reali dai risultati di ricerca
+- NON inventare URL, usa solo quelli reali dalle FONTI
 - includi solo video con URL che inizia con https://tiktok.com o https://instagram.com`;
+
 
 function CompetitorRow({comp,onDelete,onScan,onProfile,onDiscover,scanning,analyzing,discovering}) {
   const icon=comp.platform==="Instagram"?"📸":"🎵";
@@ -432,11 +471,13 @@ function Competitors() {
       setScanLog([...log]);
 
       try {
-        const {text, raw, error} = await callSearchLLM(
-          `Cerca i contenuti di "${comp.handle}" su ${comp.platform}. Usa questa query di ricerca: "${q}". Trova video/reel con URL specifici.`,
-          SCAN_SYSTEM,
-          true
-        );
+        const {text, raw, error} = await callSearchLLM({
+          query: q,
+          prompt: `Cerca i contenuti di "${comp.handle}" su ${comp.platform}. Usa la query fornita e trova video/reel con URL specifici.`,
+          system: SCAN_SYSTEM,
+          maxResults: 8,
+          includeDomains: comp.platform==="TikTok" ? ["tiktok.com"] : ["instagram.com"]
+        });
 
         if(error){
           log.push(`   ❌ Errore API: ${error.message||JSON.stringify(error)}`);
@@ -456,10 +497,10 @@ function Competitors() {
         const validated = await validateProfileUrls(filtered, comp.platform);
         log.push(`   ${debugInfo}`);
         if(filtered.length<videos.length){
-          log.push(`   ?? Filtrati ${videos.length-filtered.length} risultati non del profilo`);
+          log.push(`   ATTENZIONE: Filtrati ${videos.length-filtered.length} risultati non del profilo`);
         }
         if(validated.length<filtered.length){
-          log.push(`   ?? Scartati ${filtered.length-validated.length} URL non validi`);
+          log.push(`   ATTENZIONE: Scartati ${filtered.length-validated.length} URL non validi`);
         }
         setScanLog([...log]);
 
@@ -491,21 +532,15 @@ function Competitors() {
   const scoreManualLinks = async (comp) => {
     if(!manualLinks.trim()) return;
     setScanning(comp.id);
-    setScanLog(["📋 Modalità manuale — analisi link incollati…"]);
+    setScanLog(["Analisi manuale - analisi link incollati..."]);
 
     const lines = manualLinks.split("\n").filter(l=>l.trim().length>5).slice(0,15);
     const {text} = await callClaude(
       `Analizza questi link/testi di video ${comp.platform} del profilo "${comp.handle}" (nicchia: "${comp.niche}"):\n${lines.join("\n")}`,
-      `Sei un analista di contenuti. Per ogni link o caption fornita assegna un voto virale e analisi.
-Rispondi SOLO con JSON:
-{"videos":[{"title":"titolo o prima parte caption","url":"url se presente altrimenti stringa vuota","score":7,"tags":[],"analysis":"perché questo score"}]}`
+      `Sei un analista di contenuti. Per ogni link o caption fornita assegna un voto virale e analisi.\nRispondi SOLO con JSON:\n{"videos":[{"title":"titolo o prima parte caption","url":"url se presente altrimenti stringa vuota","score":7,"tags":[],"analysis":"perche questo score"}]}`
     );
     const {videos, debugInfo} = extractVideos(text);
-        const filtered = filterVideosByHandle(videos, comp.handle, comp.platform);
-        log.push(`   Verifica URL...`);
-        setScanLog([...log]);
-        const validated = await validateProfileUrls(filtered, comp.platform);
-    setScanLog([`📋 Analisi manuale: ${debugInfo}`]);
+    setScanLog([`Analisi manuale: ${debugInfo}`]);
     setRawResponse(text);
 
     const existing=competitors.find(c=>c.id===comp.id)?.videos||[];
@@ -519,9 +554,11 @@ Rispondi SOLO con JSON:
   const discoverSimilar = async (comp) => {
     setDiscovering(comp.id); setSimilarResult(""); setSimilarComp(comp);
     setProfileResult(""); setProfileTitle("");
-    const {text} = await callSearchLLM(
-      `Trova creator simili a "${comp.handle}" su ${comp.platform} nella nicchia "${comp.niche}". Cerca profili con stile e contenuti analoghi.`,
-      `Sei un esperto di social media scouting. Analizza il profilo dato e cerca creator simili sulla stessa piattaforma.
+    const {text} = await callSearchLLM({
+      query: `${comp.handle} ${comp.platform} ${comp.niche} creator simili`,
+      prompt: `Trova creator simili a "${comp.handle}" su ${comp.platform} nella nicchia "${comp.niche}". Cerca profili con stile e contenuti analoghi.`,
+      includeDomains: comp.platform==="TikTok" ? ["tiktok.com"] : ["instagram.com"],
+      system: `Sei un esperto di social media scouting. Analizza il profilo dato e cerca creator simili sulla stessa piattaforma.
 
 Produci una lista di creator simili con:
 1. 🔍 PERCHÉ È SIMILE - stile, nicchia, approccio
@@ -540,16 +577,18 @@ Formato risposta:
 ---
 
 Trova almeno 5-8 profili reali e verificabili. Rispondi in italiano.`,
-    );
+    });
     setSimilarResult(text); setDiscovering(null);
   };
 
   const analyzeProfile = async (comp) => {
     setAnalyzing(comp.id); setProfileResult(""); setProfileTitle(`📊 ${comp.handle}`);
-    const {text}=await callSearchLLM(
-      `Analizza il profilo ${comp.platform} "${comp.handle}" (nicchia: "${comp.niche}").`,
-      `Sei un analista strategico di social media. Ricerca e produci:\n1. 👤 PROFILO - chi è, follower, storia\n2. 📊 STRATEGIA CONTENUTI\n3. 🔥 PATTERN VINCENTI\n4. 🎯 POSIZIONAMENTO\n5. 💡 COSA RUBARE - 3 idee concrete\n6. ⚠️ PUNTI DEBOLI\nRispondi in italiano.`,
-    );
+    const {text}=await callSearchLLM({
+      query: `${comp.platform==="TikTok"?`site:tiktok.com/@${comp.handle.replace(/^@/,"")}`:`site:instagram.com/${comp.handle.replace(/^@/,"")}/`}`,
+      prompt: `Analizza il profilo ${comp.platform} "${comp.handle}" (nicchia: "${comp.niche}").`,
+      includeDomains: comp.platform==="TikTok" ? ["tiktok.com"] : ["instagram.com"],
+      system: `Sei un analista strategico di social media. Ricerca e produci:\n1. 👤 PROFILO - chi è, follower, storia\n2. 📊 STRATEGIA CONTENUTI\n3. 🔥 PATTERN VINCENTI\n4. 🎯 POSIZIONAMENTO\n5. 💡 COSA RUBARE - 3 idee concrete\n6. ⚠️ PUNTI DEBOLI\nRispondi in italiano.`,
+    });
     setProfileResult(text); setAnalyzing(null);
   };
 
@@ -557,7 +596,7 @@ Trova almeno 5-8 profili reali e verificabili. Rispondi in italiano.`,
     if(competitors.length<2) return;
     setBatchLoading(true); setProfileResult(""); setProfileTitle("📊 Analisi Comparativa");
     const handles=competitors.map(c=>`${c.handle} (${c.platform}, ${c.niche})`).join("\n");
-    const {text}=await callClaude(`Confronta:\n${handles}`,`Confronta e analizza:\n1. 🏆 RANKING\n2. 📊 PUNTI FORZA/DEBOLEZZA\n3. 🎯 GAP DI MERCATO\n4. 🔥 PATTERN VINCENTI\n5. 💡 STRATEGIA DIFFERENZIANTE\n6. ⚡ 3 AZIONI IMMEDIATE\nRispondi in italiano.`);
+    const {text}=await callClaude(`Confronta:\n${handles}`,`Confronta e analizza:\n1. 🏆 RANKING\n2. 📊 PUNTI FORZA/DEBOLEZZA\n3. 🎯 GAP DI MERCATO\n4. 🔥 PATTERN VINCENTI\n5. 💡 STRATEGIA DIFFERENZIANTE\n6. ⚡ 3 AZIONI IMMEDIATE\nRispondi in italiano.`});
     setProfileResult(text); setBatchLoading(false);
   };
 
