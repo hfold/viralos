@@ -102,6 +102,39 @@ function extractVideos(rawText) {
   return { videos:[], debugInfo };
 }
 
+function extractJsonBlock(rawText) {
+  if(!rawText) return { json:null, error:"Testo vuoto" };
+  try {
+    const match = rawText.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/);
+    if(match) return { json: JSON.parse(match[1]), error:null };
+  } catch (e) {}
+  try {
+    const start = rawText.indexOf("{");
+    const end = rawText.lastIndexOf("}");
+    if(start !== -1 && end !== -1 && end > start) {
+      const chunk = rawText.slice(start, end+1);
+      return { json: JSON.parse(chunk), error:null };
+    }
+  } catch (e) {}
+  return { json:null, error:"JSON non valido" };
+}
+
+function formatProfileAnalysis(data) {
+  if(!data || typeof data !== "object") return "";
+  const ideas = Array.isArray(data.stealIdeas) ? data.stealIdeas : [];
+  const keywords = Array.isArray(data.keywords) ? data.keywords : [];
+  const blocks = [
+    data.overview ? `OVERVIEW PROFILO\n${data.overview}` : "",
+    data.strategy ? `STRATEGIA CONTENUTI\n${data.strategy}` : "",
+    data.patterns ? `PATTERN VINCENTI\n${data.patterns}` : "",
+    data.positioning ? `POSIZIONAMENTO\n${data.positioning}` : "",
+    ideas.length ? `IDEE RUBABILI\n${ideas.map(i=>`- ${i}`).join("\n")}` : "",
+    data.weaknesses ? `PUNTI DEBOLI\n${data.weaknesses}` : "",
+    keywords.length ? `KEYWORDS\n${keywords.map(k=>`- ${k}`).join("\n")}` : ""
+  ];
+  return blocks.filter(Boolean).join("\n\n");
+}
+
 async function tavilySearch({query, maxResults=6, searchDepth="basic", includeDomains, excludeDomains, timeRange}) {
   try {
     const r = await fetch("/.netlify/functions/search",{
@@ -351,16 +384,15 @@ function buildSearchQueries(handle, platform, niche="") {
   ];
 }
 
-function buildSimilarQueries(handle, platform, keywords="") {
-  const h = handle.replace("@", "");
+function buildSimilarQueries(platform, keywords="") {
   const k = keywords ? ` ${keywords}` : "";
   if(platform==="TikTok") return [
-    { label:"site", q:`site:tiktok.com "@${h}" tiktok creator${k}`, useSite:true },
-    { label:"web", q:`creator simili a @${h} tiktok${k}`, useSite:false },
+    { label:"site", q:`site:tiktok.com tiktok creator${k}`, useSite:true },
+    { label:"web", q:`creator tiktok${k}`, useSite:false },
   ];
   return [
-    { label:"site", q:`site:instagram.com "@${h}" instagram creator${k}`, useSite:true },
-    { label:"web", q:`creator simili a @${h} instagram${k}`, useSite:false },
+    { label:"site", q:`site:instagram.com instagram creator${k}`, useSite:true },
+    { label:"web", q:`creator instagram${k}`, useSite:false },
   ];
 }
 
@@ -411,6 +443,16 @@ Regole:
 - NON inventare URL, usa solo quelli reali dalle FONTI
 - includi solo video con URL che inizia con https://tiktok.com o https://instagram.com`;
 
+const PROFILE_SYSTEM = `Sei un analista di contenuti social. In base ai video forniti, ricostruisci il profilo del creator e sintetizza la strategia.
+
+Rispondi SOLO con questo JSON esatto, zero testo prima o dopo:
+{"overview":"chi e cosa fa il creator","strategy":"formati e strategia contenuti","patterns":"pattern ricorrenti e format vincenti","positioning":"posizionamento percepito e target","stealIdeas":["idea 1","idea 2","idea 3"],"weaknesses":"punti deboli o gap evidenti","keywords":["parole chiave 1","parole chiave 2","parole chiave 3"]}
+
+Regole:
+- Usa solo le informazioni deducibili dai video forniti
+- Se mancano dati, indica in modo esplicito cosa non e chiaro
+- keywords: 6-12 parole chiave brevi, senza @, senza hashtag, 1-3 parole ciascuna`;
+
 
 function CompetitorRow({comp,onDelete,onScan,onProfile,onDiscover,scanning,analyzing,discovering}) {
   const icon=comp.platform==="Instagram"?"📸":"🎵";
@@ -420,8 +462,10 @@ function CompetitorRow({comp,onDelete,onScan,onProfile,onDiscover,scanning,analy
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           <span style={{fontSize:20}}>{icon}</span>
           <div>
-            <div style={{color:"#e8f4ff",fontWeight:600,fontSize:14}}>{comp.handle}</div>
+            <div style={{color:"#e8f4ff",fontWeight:600,fontSize:14}}>{comp.name?.trim() || comp.handle}</div>
+            {comp.name?.trim() && <div style={{color:"#7a9bc0",fontSize:11,fontFamily:"monospace"}}>{comp.handle}</div>}
             <div style={{color:"#4a6a8a",fontSize:11,fontFamily:"monospace"}}>{comp.platform} · {comp.niche}</div>
+            {comp.searchKeywords?.trim() && <div style={{color:"#2a4a6a",fontSize:10,fontFamily:"monospace"}}>Keywords: {comp.searchKeywords}</div>}
           </div>
         </div>
         <button onClick={()=>onDelete(comp.id)} style={{background:"none",border:"none",color:"#2a4a6a",cursor:"pointer",fontSize:18,padding:"2px 8px"}}>✕</button>
@@ -444,6 +488,7 @@ function CompetitorRow({comp,onDelete,onScan,onProfile,onDiscover,scanning,analy
 
 function Competitors() {
   const [competitors,setCompetitors]=useState([]);
+  const [name,setName]=useState("");
   const [handle,setHandle]=useState(""); const [platform,setPlatform]=useState("TikTok"); const [niche,setNiche]=useState("Nutrizione");
   const [searchKeywords,setSearchKeywords]=useState("");
   const [scanning,setScanning]=useState(null); const [analyzing,setAnalyzing]=useState(null); const [discovering,setDiscovering]=useState(null); const [batchLoading,setBatchLoading]=useState(false);
@@ -463,7 +508,8 @@ function Competitors() {
   const addCompetitor = async () => {
     if(!handle.trim()) return;
     const clean=handle.replace(/^@/,"").replace(/https?:\/\/(www\.)?(instagram|tiktok)\.com\//,"").replace(/\?.*/,"").replace(/\//g,"");
-    await persist([...competitors,{id:Date.now().toString(),handle:"@"+clean,platform,niche,searchKeywords:searchKeywords.trim(),addedAt:Date.now(),lastScan:null,videos:[]}]);
+    await persist([...competitors,{id:Date.now().toString(),name:name.trim(),handle:"@"+clean,platform,niche,searchKeywords:searchKeywords.trim(),addedAt:Date.now(),lastScan:null,videos:[]}]);
+    setName("");
     setHandle("");
     setSearchKeywords("");
   };
@@ -544,10 +590,26 @@ function Competitors() {
     log.push(allVideos.length>0 ? `\n✅ FATTO — ${allVideos.length} video trovati` : `\n⚠️ Nessun video trovato — prova la modalità manuale`);
     setScanLog([...log]);
 
-    const updated=competitors.map(c=>c.id===comp.id?{...c,lastScan:Date.now(),videos:allVideos}:c);
+    let analysisText = "";
+    let analysisKeywords = [];
+    if(allVideos.length>0){
+      const analysis = await runProfileAnalysisFromVideos(comp, allVideos);
+      analysisText = analysis.analysisText || "";
+      analysisKeywords = Array.isArray(analysis.keywords) ? analysis.keywords : [];
+      if(analysisText){
+        setProfileTitle(`📊 ${comp.handle} — Analisi da video`);
+        setProfileResult(analysisText);
+      }
+    }
+
+    const updated=competitors.map(c=>c.id===comp.id?{...c,lastScan:Date.now(),videos:allVideos,profileAnalysis:analysisText,analysisKeywords}:c);
     await persist(updated);
-    setSelectedComp({...comp,videos:allVideos});
+    setSelectedComp({...comp,videos:allVideos,profileAnalysis:analysisText,analysisKeywords});
     setScanning(null);
+
+    if(allVideos.length>0){
+      await runSimilarSearch({...comp,analysisKeywords}, analysisKeywords);
+    }
   };
 
   // Manual link scoring
@@ -573,13 +635,34 @@ function Competitors() {
     setManualLinks(""); setScanning(null);
   };
 
-  const discoverSimilar = async (comp) => {
+  const runProfileAnalysisFromVideos = async (comp, videos) => {
+    if(!videos || videos.length===0) return { analysisText:"", keywords:[] };
+    const lines = videos.map(v=>{
+      const tags = Array.isArray(v.tags) ? v.tags.join(" ") : "";
+      return `- ${v.title || "Video"} | ${v.url || ""} | score ${v.score || ""} | ${tags} | ${v.analysis || ""}`;
+    }).join("\n");
+    const {text} = await callClaude(
+      `Profilo: ${comp.handle}\nPiattaforma: ${comp.platform}\nNicchia: ${comp.niche}\nVideo trovati:\n${lines}`,
+      PROFILE_SYSTEM
+    );
+    const { json } = extractJsonBlock(text);
+    if(json) {
+      return {
+        analysisText: formatProfileAnalysis(json),
+        keywords: Array.isArray(json.keywords) ? json.keywords : []
+      };
+    }
+    return { analysisText: text, keywords: [] };
+  };
+
+  const runSimilarSearch = async (comp, overrideKeywords=[]) => {
     setDiscovering(comp.id); setSimilarResult(""); setSimilarComp(comp);
-    setProfileResult(""); setProfileTitle("");
     setSimilarDebugInfo(""); setSimilarRaw("");
 
-    const keywords = (comp.searchKeywords || "").trim();
-    const queries = buildSimilarQueries(comp.handle, comp.platform, keywords);
+    const list = Array.isArray(overrideKeywords) ? overrideKeywords : [];
+    const keywordsText = list.length ? list.join(" ") : (comp.analysisKeywords?.length ? comp.analysisKeywords.join(" ") : (comp.searchKeywords || comp.niche || ""));
+    const keywords = keywordsText.trim();
+    const queries = buildSimilarQueries(comp.platform, keywords);
     const log = [];
     const rawPayloads = [];
     let allResults = [];
@@ -619,7 +702,7 @@ function Competitors() {
       setSimilarDebugInfo(log.join("\n"));
     }
 
-    setSimilarRaw(JSON.stringify({ queries, results: allResults, raw: rawPayloads }, null, 2));
+    setSimilarRaw(JSON.stringify({ keywords, queries, results: allResults, raw: rawPayloads }, null, 2));
 
     if (allResults.length === 0) {
       setSimilarResult("Nessuna fonte verificabile trovata per i simili. Prova ad aggiungere parole chiave o cambiare piattaforma.");
@@ -630,10 +713,10 @@ function Competitors() {
     const sources = buildSourcesFromResults(allResults);
     const keywordsLine = keywords ? `Parole chiave richieste: ${keywords}` : "Parole chiave richieste: (nessuna)";
 
-    const prompt = `Trova creator simili a "${comp.handle}" su ${comp.platform}. ${keywordsLine}.
-Usa solo le fonti fornite e includi solo profili reali con URL verificabili.`;
+    const prompt = `Trova creator simili su ${comp.platform} basandoti sui contenuti e sulle parole chiave. ${keywordsLine}.
+Non usare il nome dell'account di partenza. Usa solo le fonti fornite e includi solo profili reali con URL verificabili.`;
 
-    const system = `Sei un esperto di social media scouting. Analizza il profilo dato e cerca creator simili sulla stessa piattaforma.
+    const system = `Sei un esperto di social media scouting. Analizza i contenuti e cerca creator simili sulla stessa piattaforma.
 
 Produci una lista di creator simili con:
 1. PERCHE E SIMILE - stile, nicchia, approccio
@@ -667,15 +750,31 @@ ${sources}`;
     setDiscovering(null);
   };
 
-const analyzeProfile = async (comp) => {
+  const discoverSimilar = async (comp) => {
+    await runSimilarSearch(comp);
+  };
+
+  const analyzeProfile = async (comp) => {
     setAnalyzing(comp.id); setProfileResult(""); setProfileTitle(`📊 ${comp.handle}`);
-    const {text}=await callSearchLLM({
-      query: `${comp.platform==="TikTok"?`site:tiktok.com/@${comp.handle.replace(/^@/,"")}`:`site:instagram.com/${comp.handle.replace(/^@/,"")}/`}`,
-      prompt: `Analizza il profilo ${comp.platform} "${comp.handle}" (nicchia: "${comp.niche}").`,
-      includeDomains: comp.platform==="TikTok" ? ["tiktok.com"] : ["instagram.com"],
-      system: `Sei un analista strategico di social media. Ricerca e produci:\n1. 👤 PROFILO - chi è, follower, storia\n2. 📊 STRATEGIA CONTENUTI\n3. 🔥 PATTERN VINCENTI\n4. 🎯 POSIZIONAMENTO\n5. 💡 COSA RUBARE - 3 idee concrete\n6. ⚠️ PUNTI DEBOLI\nRispondi in italiano.`,
-    });
-    setProfileResult(text); setAnalyzing(null);
+    if(comp.profileAnalysis){
+      setProfileResult(comp.profileAnalysis);
+      setAnalyzing(null);
+      return;
+    }
+    if(comp.videos?.length>0){
+      const analysis = await runProfileAnalysisFromVideos(comp, comp.videos);
+      const analysisText = analysis.analysisText || "";
+      const analysisKeywords = Array.isArray(analysis.keywords) ? analysis.keywords : [];
+      if(analysisText){
+        const updated=competitors.map(c=>c.id===comp.id?{...c,profileAnalysis:analysisText,analysisKeywords}:c);
+        await persist(updated);
+        setProfileResult(analysisText);
+      }
+      setAnalyzing(null);
+      return;
+    }
+    setProfileResult("Prima esegui Scansiona per trovare i video e creare l'analisi profilo.");
+    setAnalyzing(null);
   };
 
   const analyzeAll = async () => {
@@ -691,6 +790,10 @@ const analyzeProfile = async (comp) => {
       {/* Add form */}
       <div style={{background:"#070f1e",border:"1px solid #1e3a5f",borderRadius:10,padding:14,marginBottom:18}}>
         <div style={{fontSize:10,color:"#38bdf8",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontFamily:"monospace"}}>+ Aggiungi Competitor</div>
+        <div style={{marginBottom:10}}>
+          <label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Nome</label>
+          <input value={name} onChange={e=>setName(e.target.value)} placeholder="Nome o brand (opzionale)" style={{width:"100%",padding:"10px 12px",background:"#04080f",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
+        </div>
         <div style={{marginBottom:10}}>
           <label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Handle o URL profilo</label>
           <input value={handle} onChange={e=>setHandle(e.target.value)} placeholder="@beardedscara o URL" onKeyDown={e=>e.key==="Enter"&&addCompetitor()} style={{width:"100%",padding:"10px 12px",background:"#04080f",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
