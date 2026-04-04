@@ -294,17 +294,28 @@ function VideoCard({video,onDelete}) {
 
 // Search strategies
 function buildSearchQueries(handle, platform) {
-  const h = handle.replace("@","");
+  const h = handle.replace("@", "");
   if(platform==="TikTok") return [
-    { label:"site: diretto", q:`site:tiktok.com/@${h}` },
-    { label:"nome + video", q:`${h} tiktok video nutrizione dieta` },
-    { label:"aggregatori", q:`${h} tiktok inflact socialbook` },
+    { label:"profilo + video", q:`site:tiktok.com/@${h}/video` },
+    { label:"profilo diretto", q:`site:tiktok.com/@${h}` },
+    { label:"@handle", q:`"@${h}" site:tiktok.com` },
   ];
   return [
-    { label:"site: diretto", q:`site:instagram.com/${h}` },
-    { label:"nome + reel", q:`${h} instagram reel` },
-    { label:"aggregatori", q:`${h} instagram picuki storiesig` },
+    { label:"profilo diretto", q:`site:instagram.com/${h}/` },
+    { label:"post del profilo", q:`site:instagram.com/${h}/p/` },
+    { label:"@handle", q:`"@${h}" site:instagram.com` },
   ];
+}
+
+function filterVideosByHandle(videos, handle, platform) {
+  const h = (handle||"").replace(/^@/, "").toLowerCase();
+  if(!h) return videos;
+  return videos.filter(v => {
+    const url = (v.url||"").toLowerCase();
+    if(platform==="TikTok") return url.includes(`/@${h}/`);
+    if(platform==="Instagram") return url.includes(`instagram.com/${h}`);
+    return true;
+  });
 }
 
 const SCAN_SYSTEM = `Sei un analista di contenuti social con accesso alla web search. Il tuo compito è trovare video/reel pubblicati dal profilo indicato.
@@ -315,6 +326,9 @@ IMPORTANTISSIMO: rispondi SOLO con questo JSON esatto, zero testo prima o dopo:
 {"videos":[{"title":"titolo o caption del video","url":"https://url-diretto","score":7,"tags":["#hashtag1","#hashtag2"],"analysis":"1-2 frasi sul potenziale virale"}],"searchNote":"cosa hai trovato o non trovato"}
 
 Regole:
+- Includi SOLO URL che appartengono al profilo indicato
+- Per TikTok accetta solo URL con /@handle/
+- Per Instagram accetta solo URL che contengono instagram.com/handle
 - score da 1-10 basato su hook del titolo, emozione, tema trending
 - se non trovi video con URL specifici restituisci {"videos":[],"searchNote":"motivo"}
 - NON inventare URL, usa solo quelli reali dai risultati di ricerca
@@ -416,13 +430,17 @@ function Competitors() {
         setScanLog([...log]);
 
         const {videos, debugInfo} = extractVideos(text);
+        const filtered = filterVideosByHandle(videos, comp.handle, comp.platform);
         log.push(`   ${debugInfo}`);
+        if(filtered.length<videos.length){
+          log.push(`   ?? Filtrati ${videos.length-filtered.length} risultati non del profilo`);
+        }
         setScanLog([...log]);
 
-        if(videos.length>0){
+        if(filtered.length>0){
           // deduplicate
           const existingUrls = new Set(allVideos.map(v=>v.url));
-          const newVids = videos.filter(v=>!existingUrls.has(v.url));
+          const newVids = filtered.filter(v=>!existingUrls.has(v.url));
           allVideos=[...allVideos,...newVids];
           log.push(`   ✅ Totale video unici: ${allVideos.length}`);
           setScanLog([...log]);
@@ -457,6 +475,7 @@ Rispondi SOLO con JSON:
 {"videos":[{"title":"titolo o prima parte caption","url":"url se presente altrimenti stringa vuota","score":7,"tags":[],"analysis":"perché questo score"}]}`
     );
     const {videos, debugInfo} = extractVideos(text);
+        const filtered = filterVideosByHandle(videos, comp.handle, comp.platform);
     setScanLog([`📋 Analisi manuale: ${debugInfo}`]);
     setRawResponse(text);
 
