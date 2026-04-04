@@ -124,19 +124,21 @@ async function tavilySearch({query, maxResults=6, searchDepth="basic", includeDo
   }
 }
 
+function buildSourcesFromResults(results) {
+  return (results || []).map((r,i)=>{
+    const title = r.title || `Risultato ${i+1}`;
+    const url = r.url || "";
+    const snippet = (r.content || r.snippet || "").slice(0,400);
+    return `[${i+1}] ${title}\n${url}\n${snippet}`;
+  }).join("\n\n");
+}
+
 async function callSearchLLM({query, prompt, system, maxResults=6, searchDepth="basic", includeDomains}) {
   const search = await tavilySearch({query, maxResults, searchDepth, includeDomains});
   if(search.error){
     return { text: "", raw: search.raw, error: search.error };
   }
-  const sources = (search.results || []).map((r,i)=>{
-    const title = r.title || `Risultato ${i+1}`;
-    const url = r.url || "";
-    const snippet = (r.content || r.snippet || "").slice(0,400);
-    return `[${i+1}] ${title}
-${url}
-${snippet}`;
-  }).join("\n\n");
+  const sources = buildSourcesFromResults(search.results || []);
   const fullPrompt = `${prompt}
 
 FONTI (usa solo queste, non inventare URL):
@@ -334,16 +336,31 @@ function VideoCard({video,onDelete}) {
 }
 
 // Search strategies
-function buildSearchQueries(handle, platform, keywords="") {
+function buildSearchQueries(handle, platform, niche="") {
+  const h = handle.replace("@", "");
+  const n = niche ? ` ${niche}` : "";
+  if(platform==="TikTok") return [
+    { label:"profilo + video", q:`site:tiktok.com/@${h} video tiktok${n}` },
+    { label:"profilo diretto", q:`site:tiktok.com/@${h} tiktok${n}` },
+    { label:"@handle", q:`"@${h}" tiktok video${n}` },
+  ];
+  return [
+    { label:"profilo diretto", q:`site:instagram.com/${h}/ instagram${n}` },
+    { label:"post del profilo", q:`site:instagram.com/${h}/p/ instagram${n}` },
+    { label:"@handle", q:`"@${h}" instagram reel${n}` },
+  ];
+}
+
+function buildSimilarQueries(handle, platform, keywords="") {
   const h = handle.replace("@", "");
   const k = keywords ? ` ${keywords}` : "";
   if(platform==="TikTok") return [
-    { label:"site + handle", q:`site:tiktok.com/@${h} tiktok${k}` },
-    { label:"handle libero", q:`@${h} tiktok${k}` },
+    { label:"site", q:`site:tiktok.com "@${h}" tiktok creator${k}`, useSite:true },
+    { label:"web", q:`creator simili a @${h} tiktok${k}`, useSite:false },
   ];
   return [
-    { label:"site + handle", q:`site:instagram.com/${h}/ instagram${k}` },
-    { label:"handle libero", q:`@${h} instagram${k}` },
+    { label:"site", q:`site:instagram.com "@${h}" instagram creator${k}`, useSite:true },
+    { label:"web", q:`creator simili a @${h} instagram${k}`, useSite:false },
   ];
 }
 
@@ -431,6 +448,7 @@ function Competitors() {
   const [searchKeywords,setSearchKeywords]=useState("");
   const [scanning,setScanning]=useState(null); const [analyzing,setAnalyzing]=useState(null); const [discovering,setDiscovering]=useState(null); const [batchLoading,setBatchLoading]=useState(false);
   const [similarResult,setSimilarResult]=useState(""); const [similarComp,setSimilarComp]=useState(null);
+  const [similarDebugInfo,setSimilarDebugInfo]=useState(""); const [similarRaw,setSimilarRaw]=useState("");
   const [selectedComp,setSelectedComp]=useState(null);
   const [profileResult,setProfileResult]=useState(""); const [profileTitle,setProfileTitle]=useState("");
   const [storageReady,setStorageReady]=useState(false);
@@ -465,7 +483,7 @@ function Competitors() {
   const scanContent = async (comp) => {
     setScanning(comp.id); setSelectedComp({...comp,videos:[]}); setProfileResult("");
     setProfileTitle(""); setScanLog([]); setRawResponse(""); setShowManual(false);
-    const queries = buildSearchQueries(comp.handle, comp.platform, comp.searchKeywords || "");
+    const queries = buildSearchQueries(comp.handle, comp.platform, comp.niche);
     let allVideos = [];
     const log = [];
 
@@ -558,34 +576,98 @@ function Competitors() {
   const discoverSimilar = async (comp) => {
     setDiscovering(comp.id); setSimilarResult(""); setSimilarComp(comp);
     setProfileResult(""); setProfileTitle("");
-    const {text} = await callSearchLLM({
-      query: `${comp.handle} ${comp.platform} ${comp.niche} creator simili`,
-      prompt: `Trova creator simili a "${comp.handle}" su ${comp.platform} nella nicchia "${comp.niche}". Cerca profili con stile e contenuti analoghi.`,
-      includeDomains: comp.platform==="TikTok" ? ["tiktok.com"] : ["instagram.com"],
-      system: `Sei un esperto di social media scouting. Analizza il profilo dato e cerca creator simili sulla stessa piattaforma.
+    setSimilarDebugInfo(""); setSimilarRaw("");
+
+    const keywords = (comp.searchKeywords || "").trim();
+    const queries = buildSimilarQueries(comp.handle, comp.platform, keywords);
+    const log = [];
+    const rawPayloads = [];
+    let allResults = [];
+
+    for (const { label, q } of queries) {
+      log.push(`Strategia: ${label}`);
+      log.push(`Query: "${q}"`);
+      setSimilarDebugInfo(log.join("\n"));
+
+      const { results, raw, error } = await tavilySearch({
+        query: q,
+        maxResults: 8,
+        searchDepth: "basic",
+        includeDomains: comp.platform === "TikTok" ? ["tiktok.com"] : ["instagram.com"]
+      });
+
+      rawPayloads.push({ label, query: q, error: error || null, raw });
+
+      if (error) {
+        const msg = error.message || (typeof error === "string" ? error : JSON.stringify(error));
+        log.push(`Errore API: ${msg}`);
+        setSimilarDebugInfo(log.join("\n"));
+        continue;
+      }
+
+      const filtered = (results || []).filter(r => {
+        const url = (r.url || "").toLowerCase();
+        if (comp.platform === "TikTok") return url.includes("tiktok.com/@");
+        return url.includes("instagram.com/");
+      });
+
+      const existing = new Set(allResults.map(r => r.url));
+      const deduped = filtered.filter(r => r.url && !existing.has(r.url));
+      allResults = [...allResults, ...deduped];
+
+      log.push(`Risultati validi: ${filtered.length} | Totale unici: ${allResults.length}`);
+      setSimilarDebugInfo(log.join("\n"));
+    }
+
+    setSimilarRaw(JSON.stringify({ queries, results: allResults, raw: rawPayloads }, null, 2));
+
+    if (allResults.length === 0) {
+      setSimilarResult("Nessuna fonte verificabile trovata per i simili. Prova ad aggiungere parole chiave o cambiare piattaforma.");
+      setDiscovering(null);
+      return;
+    }
+
+    const sources = buildSourcesFromResults(allResults);
+    const keywordsLine = keywords ? `Parole chiave richieste: ${keywords}` : "Parole chiave richieste: (nessuna)";
+
+    const prompt = `Trova creator simili a "${comp.handle}" su ${comp.platform}. ${keywordsLine}.
+Usa solo le fonti fornite e includi solo profili reali con URL verificabili.`;
+
+    const system = `Sei un esperto di social media scouting. Analizza il profilo dato e cerca creator simili sulla stessa piattaforma.
 
 Produci una lista di creator simili con:
-1. 🔍 PERCHÉ È SIMILE - stile, nicchia, approccio
-2. 📊 DIMENSIONE - follower stimati  
-3. 🎯 DIFFERENZA CHIAVE - cosa fa di diverso rispetto al profilo di partenza
-4. 💡 PERCHÉ MONITORARLO - cosa puoi imparare
+1. PERCHE E SIMILE - stile, nicchia, approccio
+2. DIMENSIONE - follower stimati
+3. DIFFERENZA CHIAVE - cosa fa di diverso rispetto al profilo di partenza
+4. PERCHE MONITORARLO - cosa puoi imparare
 
 Formato risposta:
 ---
-**@handle** · [piattaforma]
-👥 Follower: ~Xk
-🔍 Simile perché: ...
-🎯 Si differenzia per: ...
-💡 Monitoralo perché: ...
-🔗 Profilo: https://...
+**@handle** ? [piattaforma]
+Follower: ~Xk
+Simile perche: ...
+Si differenzia per: ...
+Monitoralo perche: ...
+Profilo: https://...
 ---
 
-Trova almeno 5-8 profili reali e verificabili. Rispondi in italiano.`,
-    });
-    setSimilarResult(text); setDiscovering(null);
+Regole: usa SOLO le fonti. Se un profilo non ha URL verificabile nelle fonti, non inserirlo. Rispondi in italiano.`;
+
+    const fullPrompt = `${prompt}
+
+FONTI (usa solo queste, non inventare URL):
+${sources}`;
+    const { text, error } = await callLLM({ provider: ACTIVE_PROVIDER, prompt: fullPrompt, system });
+
+    if (error) {
+      setSimilarResult(`Errore LLM: ${error.message || "Impossibile completare"}`);
+    } else {
+      setSimilarResult(text);
+    }
+    setDiscovering(null);
   };
 
-  const analyzeProfile = async (comp) => {
+const analyzeProfile = async (comp) => {
     setAnalyzing(comp.id); setProfileResult(""); setProfileTitle(`📊 ${comp.handle}`);
     const {text}=await callSearchLLM({
       query: `${comp.platform==="TikTok"?`site:tiktok.com/@${comp.handle.replace(/^@/,"")}`:`site:instagram.com/${comp.handle.replace(/^@/,"")}/`}`,
@@ -614,7 +696,7 @@ Trova almeno 5-8 profili reali e verificabili. Rispondi in italiano.`,
           <input value={handle} onChange={e=>setHandle(e.target.value)} placeholder="@beardedscara o URL" onKeyDown={e=>e.key==="Enter"&&addCompetitor()} style={{width:"100%",padding:"10px 12px",background:"#04080f",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
         </div>
         <div style={{marginBottom:10}}>
-          <label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Parole chiave (opzionale)</label>
+          <label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Parole chiave per simili (opzionale)</label>
           <input value={searchKeywords} onChange={e=>setSearchKeywords(e.target.value)} placeholder="es. beard tips viaggio germany" style={{width:"100%",padding:"10px 12px",background:"#04080f",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
         </div>
         <div style={{display:"flex",gap:8,marginBottom:12}}>
@@ -725,7 +807,7 @@ Trova almeno 5-8 profili reali e verificabili. Rispondi in italiano.`,
             <div style={{fontSize:13,color:"#f59e0b",fontFamily:"monospace",fontWeight:600}}>
               🌐 Creator simili a {similarComp?.handle}
             </div>
-            <button onClick={()=>{setSimilarResult("");setSimilarComp(null);}} style={{background:"none",border:"none",color:"#4a6a8a",cursor:"pointer",fontSize:18}}>✕</button>
+            <button onClick={()=>{setSimilarResult("");setSimilarComp(null);setSimilarDebugInfo("");setSimilarRaw("");}} style={{background:"none",border:"none",color:"#4a6a8a",cursor:"pointer",fontSize:18}}>✕</button>
           </div>
           <div style={{background:"linear-gradient(135deg,#0a1628,#0d1f3c)",...glow("#f59e0b"),borderRadius:12,padding:16,fontSize:13,color:"#c8d8f0",lineHeight:1.8,whiteSpace:"pre-wrap",maxHeight:500,overflowY:"auto"}}>
             {similarResult}
@@ -736,6 +818,9 @@ Trova almeno 5-8 profili reali e verificabili. Rispondi in italiano.`,
             </div>
           </div>
         </div>
+      )}
+      {!discovering&&(similarDebugInfo||similarRaw)&&(
+        <DebugPanel info={similarDebugInfo} rawText={similarRaw}/>
       )}
     </div>
   );
