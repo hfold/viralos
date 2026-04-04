@@ -107,6 +107,11 @@ function extractVideos(rawText) {
   return { videos:[], debugInfo };
 }
 
+async function callSearchLLM(prompt, system) {
+  return callLLM({ provider: "anthropic", prompt, system, useSearch: true });
+}
+
+
 // ─── STORAGE ──────────────────────────────────────────────────────
 async function loadCompetitors() {
   try { const r=await window.storage.get("viralosc2"); return r?JSON.parse(r.value):[]; } catch { return []; }
@@ -318,6 +323,26 @@ function filterVideosByHandle(videos, handle, platform) {
   });
 }
 
+async function validateProfileUrls(videos, platform) {
+  if(platform!=="TikTok") return videos;
+  const urls = videos.map(v=>v.url).filter(Boolean);
+  if(urls.length===0) return videos;
+  try {
+    const r = await fetch("/.netlify/functions/validate",{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({ platform, urls })
+    });
+    const data = await r.json();
+    if(r.ok && Array.isArray(data.validUrls)) {
+      const set = new Set(data.validUrls);
+      return videos.filter(v=>set.has(v.url));
+    }
+  } catch (e) {}
+  return videos;
+}
+
+
 const SCAN_SYSTEM = `Sei un analista di contenuti social con accesso alla web search. Il tuo compito è trovare video/reel pubblicati dal profilo indicato.
 
 Usa la web search con la query fornita. Analizza i risultati e per ogni video/reel trovato con URL specifico estrai le informazioni.
@@ -412,7 +437,7 @@ function Competitors() {
       setScanLog([...log]);
 
       try {
-        const {text, raw, error} = await callClaude(
+        const {text, raw, error} = await callSearchLLM(
           `Cerca i contenuti di "${comp.handle}" su ${comp.platform}. Usa questa query di ricerca: "${q}". Trova video/reel con URL specifici.`,
           SCAN_SYSTEM,
           true
@@ -431,16 +456,22 @@ function Competitors() {
 
         const {videos, debugInfo} = extractVideos(text);
         const filtered = filterVideosByHandle(videos, comp.handle, comp.platform);
+        log.push(`   Verifica URL...`);
+        setScanLog([...log]);
+        const validated = await validateProfileUrls(filtered, comp.platform);
         log.push(`   ${debugInfo}`);
         if(filtered.length<videos.length){
           log.push(`   ?? Filtrati ${videos.length-filtered.length} risultati non del profilo`);
         }
+        if(validated.length<filtered.length){
+          log.push(`   ?? Scartati ${filtered.length-validated.length} URL non validi`);
+        }
         setScanLog([...log]);
 
-        if(filtered.length>0){
+        if(validated.length>0){
           // deduplicate
           const existingUrls = new Set(allVideos.map(v=>v.url));
-          const newVids = filtered.filter(v=>!existingUrls.has(v.url));
+          const newVids = validated.filter(v=>!existingUrls.has(v.url));
           allVideos=[...allVideos,...newVids];
           log.push(`   ✅ Totale video unici: ${allVideos.length}`);
           setScanLog([...log]);
@@ -476,6 +507,9 @@ Rispondi SOLO con JSON:
     );
     const {videos, debugInfo} = extractVideos(text);
         const filtered = filterVideosByHandle(videos, comp.handle, comp.platform);
+        log.push(`   Verifica URL...`);
+        setScanLog([...log]);
+        const validated = await validateProfileUrls(filtered, comp.platform);
     setScanLog([`📋 Analisi manuale: ${debugInfo}`]);
     setRawResponse(text);
 
@@ -490,7 +524,7 @@ Rispondi SOLO con JSON:
   const discoverSimilar = async (comp) => {
     setDiscovering(comp.id); setSimilarResult(""); setSimilarComp(comp);
     setProfileResult(""); setProfileTitle("");
-    const {text} = await callClaude(
+    const {text} = await callSearchLLM(
       `Trova creator simili a "${comp.handle}" su ${comp.platform} nella nicchia "${comp.niche}". Cerca profili con stile e contenuti analoghi.`,
       `Sei un esperto di social media scouting. Analizza il profilo dato e cerca creator simili sulla stessa piattaforma.
 
@@ -511,17 +545,15 @@ Formato risposta:
 ---
 
 Trova almeno 5-8 profili reali e verificabili. Rispondi in italiano.`,
-      true
     );
     setSimilarResult(text); setDiscovering(null);
   };
 
   const analyzeProfile = async (comp) => {
     setAnalyzing(comp.id); setProfileResult(""); setProfileTitle(`📊 ${comp.handle}`);
-    const {text}=await callClaude(
+    const {text}=await callSearchLLM(
       `Analizza il profilo ${comp.platform} "${comp.handle}" (nicchia: "${comp.niche}").`,
       `Sei un analista strategico di social media. Ricerca e produci:\n1. 👤 PROFILO - chi è, follower, storia\n2. 📊 STRATEGIA CONTENUTI\n3. 🔥 PATTERN VINCENTI\n4. 🎯 POSIZIONAMENTO\n5. 💡 COSA RUBARE - 3 idee concrete\n6. ⚠️ PUNTI DEBOLI\nRispondi in italiano.`,
-      true
     );
     setProfileResult(text); setAnalyzing(null);
   };
@@ -530,7 +562,7 @@ Trova almeno 5-8 profili reali e verificabili. Rispondi in italiano.`,
     if(competitors.length<2) return;
     setBatchLoading(true); setProfileResult(""); setProfileTitle("📊 Analisi Comparativa");
     const handles=competitors.map(c=>`${c.handle} (${c.platform}, ${c.niche})`).join("\n");
-    const {text}=await callClaude(`Confronta:\n${handles}`,`Confronta e analizza:\n1. 🏆 RANKING\n2. 📊 PUNTI FORZA/DEBOLEZZA\n3. 🎯 GAP DI MERCATO\n4. 🔥 PATTERN VINCENTI\n5. 💡 STRATEGIA DIFFERENZIANTE\n6. ⚡ 3 AZIONI IMMEDIATE\nRispondi in italiano.`,true);
+    const {text}=await callClaude(`Confronta:\n${handles}`,`Confronta e analizza:\n1. 🏆 RANKING\n2. 📊 PUNTI FORZA/DEBOLEZZA\n3. 🎯 GAP DI MERCATO\n4. 🔥 PATTERN VINCENTI\n5. 💡 STRATEGIA DIFFERENZIANTE\n6. ⚡ 3 AZIONI IMMEDIATE\nRispondi in italiano.`);
     setProfileResult(text); setBatchLoading(false);
   };
 
