@@ -334,17 +334,18 @@ function VideoCard({video,onDelete}) {
 }
 
 // Search strategies
-function buildSearchQueries(handle, platform) {
+function buildSearchQueries(handle, platform, niche="") {
   const h = handle.replace("@", "");
+  const n = niche ? ` ${niche}` : "";
   if(platform==="TikTok") return [
-    { label:"profilo + video", q:`site:tiktok.com/@${h}/video` },
-    { label:"profilo diretto", q:`site:tiktok.com/@${h}` },
-    { label:"@handle", q:`"@${h}" site:tiktok.com` },
+    { label:"profilo + video", q:`site:tiktok.com/@${h} video tiktok${n}` },
+    { label:"profilo diretto", q:`site:tiktok.com/@${h} tiktok${n}` },
+    { label:"@handle", q:`"@${h}" tiktok video${n}` },
   ];
   return [
-    { label:"profilo diretto", q:`site:instagram.com/${h}/` },
-    { label:"post del profilo", q:`site:instagram.com/${h}/p/` },
-    { label:"@handle", q:`"@${h}" site:instagram.com` },
+    { label:"profilo diretto", q:`site:instagram.com/${h}/ instagram${n}` },
+    { label:"post del profilo", q:`site:instagram.com/${h}/p/ instagram${n}` },
+    { label:"@handle", q:`"@${h}" instagram reel${n}` },
   ];
 }
 
@@ -464,7 +465,7 @@ function Competitors() {
   const scanContent = async (comp) => {
     setScanning(comp.id); setSelectedComp({...comp,videos:[]}); setProfileResult("");
     setProfileTitle(""); setScanLog([]); setRawResponse(""); setShowManual(false);
-    const queries = buildSearchQueries(comp.handle, comp.platform);
+    const queries = buildSearchQueries(comp.handle, comp.platform, comp.niche);
     let allVideos = [];
     const log = [];
 
