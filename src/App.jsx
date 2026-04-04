@@ -180,17 +180,17 @@ function TrendScanner() {
   const runAI = async () => {
     setLoading(true); setResult("");
     const {text} = await callClaude(`Nicchia: ${niche}`,`Genera trend PROBABILI:
-1. ?? TOP 5 TREND
-2. ?? 3 ANGOLI VIRALI
-3. ?? TARGET PSICOLOGICO
-?? Specifica che sono stime AI. Rispondi in italiano.`);
+1.  TOP 5 TREND
+2.  3 ANGOLI VIRALI
+3.  TARGET PSICOLOGICO
+ Specifica che sono stime AI. Rispondi in italiano.`);
     setResult(text); setLoading(false);
   };
   return (
     <div>
       <Sel value={niche} onChange={setNiche} options={NICHES} label="Nicchia"/>
-      <div style={{background:"#2a1a0a",border:"1px solid #f59e0b44",borderRadius:8,padding:"10px 14px",marginBottom:14,fontSize:12,color:"#f59e0b",fontFamily:"monospace"}}>?? Trend probabili AI, non dati real-time.</div>
-      <Btn onClick={runAI} loading={loading} color="#00ff9d">{loading?"Generazione?":"?? Genera Trend AI"}</Btn>
+      <div style={{background:"#2a1a0a",border:"1px solid #f59e0b44",borderRadius:8,padding:"10px 14px",marginBottom:14,fontSize:12,color:"#f59e0b",fontFamily:"monospace"}}>Attenzione: trend probabili AI, non dati real-time.</div>
+      <Btn onClick={runAI} loading={loading} color="#00ff9d">{loading?"Generazione?":"Genera Trend AI"}</Btn>
       {loading&&<Spinner/>}
       <ResultBox text={result} color="#00ff9d"/>
     </div>
@@ -650,7 +650,7 @@ Trova almeno 5-8 profili reali e verificabili. Rispondi in italiano.`,
 
 // ─── APP ──────────────────────────────────────────────────────────
 export default function App() {
-  const [activeTab,setActiveTab]=useState("trend");
+  const [activeTab,setActiveTab]=useState("competitors");
   const [provider,setProvider]=useState("gemini");
   useEffect(()=>{ setActiveProvider(provider); }, [provider]);
   const activeColor=TAB_COLORS[activeTab];
