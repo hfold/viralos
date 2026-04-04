@@ -125,11 +125,8 @@ function formatProfileAnalysis(data) {
   const keywords = Array.isArray(data.keywords) ? data.keywords : [];
   const blocks = [
     data.overview ? `OVERVIEW PROFILO\n${data.overview}` : "",
-    data.strategy ? `STRATEGIA CONTENUTI\n${data.strategy}` : "",
     data.patterns ? `PATTERN VINCENTI\n${data.patterns}` : "",
-    data.positioning ? `POSIZIONAMENTO\n${data.positioning}` : "",
     ideas.length ? `IDEE RUBABILI\n${ideas.map(i=>`- ${i}`).join("\n")}` : "",
-    data.weaknesses ? `PUNTI DEBOLI\n${data.weaknesses}` : "",
     keywords.length ? `KEYWORDS\n${keywords.map(k=>`- ${k}`).join("\n")}` : ""
   ];
   return blocks.filter(Boolean).join("\n\n");
@@ -443,13 +440,13 @@ Regole:
 - NON inventare URL, usa solo quelli reali dalle FONTI
 - includi solo video con URL che inizia con https://tiktok.com o https://instagram.com`;
 
-const PROFILE_SYSTEM = `Sei un analista di contenuti social. In base ai video forniti, ricostruisci il profilo del creator e sintetizza la strategia.
+const PROFILE_SYSTEM = `Sei un analista di contenuti social. In base ai video e alle fonti profilo, ricostruisci il profilo del creator.
 
 Rispondi SOLO con questo JSON esatto, zero testo prima o dopo:
-{"overview":"chi e cosa fa il creator","strategy":"formati e strategia contenuti","patterns":"pattern ricorrenti e format vincenti","positioning":"posizionamento percepito e target","stealIdeas":["idea 1","idea 2","idea 3"],"weaknesses":"punti deboli o gap evidenti","keywords":["parole chiave 1","parole chiave 2","parole chiave 3"]}
+{"overview":"chi e cosa fa il creator (includi anche il posizionamento)","patterns":"pattern ricorrenti e format vincenti","stealIdeas":["idea 1","idea 2","idea 3"],"keywords":["parole chiave 1","parole chiave 2","parole chiave 3"]}
 
 Regole:
-- Usa solo le informazioni deducibili dai video forniti
+- Usa solo le informazioni deducibili dai video e dalle FONTI PROFILO
 - Se mancano dati, indica in modo esplicito cosa non e chiaro
 - keywords: 6-12 parole chiave brevi, senza @, senza hashtag, 1-3 parole ciascuna`;
 
@@ -474,12 +471,7 @@ function CompetitorRow({comp,onDelete,onScan,onProfile,onDiscover,scanning,analy
         <Btn onClick={()=>onScan(comp)} loading={scanning===comp.id} color="#38bdf8" small>
           {scanning===comp.id?"🔍 Ricerca…":"🔍 Scansiona"}
         </Btn>
-        <Btn onClick={()=>onProfile(comp)} loading={analyzing===comp.id} color="#a78bfa" small>
-          {analyzing===comp.id?"📊 Analisi…":"📊 Profilo"}
-        </Btn>
-        <Btn onClick={()=>onDiscover(comp)} loading={discovering===comp.id} color="#f59e0b" small>
-          {discovering===comp.id?"🌐 Ricerca…":"🌐 Simili"}
-        </Btn>
+        {/* Solo Scansiona */}
       </div>
     </div>
   );
@@ -493,6 +485,7 @@ function Competitors() {
   const [similarResult,setSimilarResult]=useState(""); const [similarComp,setSimilarComp]=useState(null);
   const [similarDebugInfo,setSimilarDebugInfo]=useState(""); const [similarRaw,setSimilarRaw]=useState("");
   const [selectedComp,setSelectedComp]=useState(null);
+  const [scanTab,setScanTab]=useState("video");
   const [profileResult,setProfileResult]=useState(""); const [profileTitle,setProfileTitle]=useState("");
   const [storageReady,setStorageReady]=useState(false);
   const [scanLog,setScanLog]=useState([]); // debug log
@@ -526,6 +519,7 @@ function Competitors() {
   const scanContent = async (comp) => {
     setScanning(comp.id); setSelectedComp({...comp,videos:[]}); setProfileResult("");
     setProfileTitle(""); setScanLog([]); setRawResponse(""); setShowManual(false);
+    setScanTab("video");
     const queries = buildSearchQueries(comp.handle, comp.platform, comp.searchKeywords || "");
     let allVideos = [];
     const log = [];
@@ -640,10 +634,20 @@ function Competitors() {
       return `- ${v.title || "Video"} | ${v.url || ""} | score ${v.score || ""} | ${tags} | ${v.analysis || ""}`;
     }).join("\n");
     const kw = comp.searchKeywords ? `Parole chiave: ${comp.searchKeywords}` : "Parole chiave: (nessuna)";
-    const {text} = await callClaude(
-      `Profilo: ${comp.handle}\nPiattaforma: ${comp.platform}\n${kw}\nVideo trovati:\n${lines}`,
-      PROFILE_SYSTEM
-    );
+
+    const accountQuery = comp.platform==="TikTok"
+      ? `site:tiktok.com/@${comp.handle.replace(/^@/,"")}`
+      : `site:instagram.com/${comp.handle.replace(/^@/,"")}/`;
+    const accountSearch = await tavilySearch({
+      query: accountQuery,
+      maxResults: 6,
+      searchDepth: "basic",
+      includeDomains: comp.platform==="TikTok" ? ["tiktok.com"] : ["instagram.com"]
+    });
+    const profileSources = buildSourcesFromResults(accountSearch.results || []);
+
+    const prompt = `Profilo: ${comp.handle}\nPiattaforma: ${comp.platform}\n${kw}\n\nVIDEO TROVATI:\n${lines}\n\nFONTI PROFILO (ricerca account, senza parole chiave):\n${profileSources || "Nessuna fonte profilo."}`;
+    const {text} = await callLLM({ provider: ACTIVE_PROVIDER, prompt, system: PROFILE_SYSTEM });
     const { json } = extractJsonBlock(text);
     if(json) {
       return {
@@ -834,7 +838,7 @@ ${sources}`;
         </>
       )}
 
-      {/* Video results */}
+      {/* Results */}
       {selectedComp&&(
         <div style={{marginTop:22}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
@@ -844,6 +848,16 @@ ${sources}`;
           {selectedComp.searchKeywords?.trim() && (
             <div style={{fontSize:10,color:"#2a4a6a",fontFamily:"monospace",marginBottom:10}}>
               + parole chiave: {selectedComp.searchKeywords}
+            </div>
+          )}
+
+          {!scanning&&(
+            <div style={{display:"flex",gap:6,marginBottom:12,overflowX:"auto"}}>
+              {["video","profilo","competitor"].map(tab=>(
+                <button key={tab} onClick={()=>setScanTab(tab)} style={{flexShrink:0,padding:"8px 12px",borderRadius:8,border:scanTab===tab?`1px solid #38bdf866`:"1px solid #0e2040",background:scanTab===tab?"#0b1b33":"#060d1a",color:scanTab===tab?"#38bdf8":"#4a6a8a",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"monospace",textTransform:"uppercase"}}>
+                  {tab==="video"?"Video":tab==="profilo"?"Analisi Profilo":"Competitor"}
+                </button>
+              ))}
             </div>
           )}
 
@@ -860,11 +874,11 @@ ${sources}`;
             </div>
           )}
 
-          {!scanning&&selectedComp.videos?.length>0&&(
+          {!scanning&&scanTab==="video"&&selectedComp.videos?.length>0&&(
             selectedComp.videos.map((v,i)=><VideoCard key={i} video={v} onDelete={key=>deleteVideo(selectedComp.id,key)}/>)
           )}
 
-          {!scanning&&selectedComp.videos?.length===0&&(
+          {!scanning&&scanTab==="video"&&selectedComp.videos?.length===0&&(
             <div style={{background:"#070f1e",border:"1px dashed #1e3a5f",borderRadius:8,padding:14,marginBottom:10}}>
               <div style={{color:"#4a6a8a",fontFamily:"monospace",fontSize:12,marginBottom:10}}>
                 Nessun video trovato automaticamente. Puoi incollare link o caption manualmente:
@@ -881,6 +895,24 @@ ${sources}`;
             </div>
           )}
 
+          {!scanning&&scanTab==="profilo"&&(
+            profileResult ? (
+              <ResultBox text={profileResult} color="#a78bfa"/>
+            ) : (
+              <div style={{color:"#2a4a6a",fontFamily:"monospace",fontSize:12}}>Nessuna analisi profilo disponibile. Esegui prima la scansione.</div>
+            )
+          )}
+
+          {!scanning&&scanTab==="competitor"&&(
+            similarResult ? (
+              <div style={{background:"linear-gradient(135deg,#0a1628,#0d1f3c)",...glow("#f59e0b"),borderRadius:12,padding:16,fontSize:13,color:"#c8d8f0",lineHeight:1.8,whiteSpace:"pre-wrap",maxHeight:500,overflowY:"auto"}}>
+                {similarResult}
+              </div>
+            ) : (
+              <div style={{color:"#2a4a6a",fontFamily:"monospace",fontSize:12}}>Nessun risultato competitor disponibile. Esegui prima la scansione.</div>
+            )
+          )}
+
           {/* Debug panel always shown after scan */}
           {!scanning&&(scanLog.length>0||rawResponse)&&(
             <DebugPanel info={scanLog.join("\n")} rawText={rawResponse}/>
@@ -888,34 +920,7 @@ ${sources}`;
         </div>
       )}
 
-      {(analyzing||batchLoading)&&<Spinner color="#a78bfa"/>}
-      {profileResult&&(
-        <div style={{marginTop:20}}>
-          <div style={{fontSize:13,color:"#a78bfa",fontFamily:"monospace",fontWeight:600,marginBottom:6}}>{profileTitle}</div>
-          <ResultBox text={profileResult} color="#a78bfa"/>
-        </div>
-      )}
-
-      {/* Similar competitors panel */}
-      {discovering&&<Spinner color="#f59e0b" label={`Ricerca creator simili a ${similarComp?.handle}…`}/>}
-      {similarResult&&!discovering&&(
-        <div style={{marginTop:20}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-            <div style={{fontSize:13,color:"#f59e0b",fontFamily:"monospace",fontWeight:600}}>
-              🌐 Creator simili a {similarComp?.handle}
-            </div>
-            <button onClick={()=>{setSimilarResult("");setSimilarComp(null);setSimilarDebugInfo("");setSimilarRaw("");}} style={{background:"none",border:"none",color:"#4a6a8a",cursor:"pointer",fontSize:18}}>✕</button>
-          </div>
-          <div style={{background:"linear-gradient(135deg,#0a1628,#0d1f3c)",...glow("#f59e0b"),borderRadius:12,padding:16,fontSize:13,color:"#c8d8f0",lineHeight:1.8,whiteSpace:"pre-wrap",maxHeight:500,overflowY:"auto"}}>
-            {similarResult}
-          </div>
-          <div style={{marginTop:12}}>
-            <div style={{fontSize:11,color:"#4a6a8a",fontFamily:"monospace",marginBottom:8}}>
-              Vuoi aggiungere uno di questi alla tua lista? Copia l'handle e incollalo sopra.
-            </div>
-          </div>
-        </div>
-      )}
+      {(analyzing||batchLoading||discovering)&&<Spinner color="#a78bfa"/>}
       {!discovering&&(similarDebugInfo||similarRaw)&&(
         <DebugPanel info={similarDebugInfo} rawText={similarRaw}/>
       )}
