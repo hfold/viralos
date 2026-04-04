@@ -503,6 +503,7 @@ function Competitors() {
   const [scanning,setScanning]=useState(null); const [analyzing,setAnalyzing]=useState(null); const [discovering,setDiscovering]=useState(null); const [batchLoading,setBatchLoading]=useState(false);
   const [similarResult,setSimilarResult]=useState(""); const [similarComp,setSimilarComp]=useState(null);
   const [similarDebugInfo,setSimilarDebugInfo]=useState(""); const [similarRaw,setSimilarRaw]=useState("");
+  const [similarItems,setSimilarItems]=useState([]);
   const [selectedComp,setSelectedComp]=useState(null);
   const [scanTab,setScanTab]=useState("video");
   const [profileTab,setProfileTab]=useState("overview");
@@ -729,6 +730,12 @@ function Competitors() {
       setSimilarDebugInfo(log.join("\n"));
     }
 
+    const items = allResults.map(r=>({
+      title: r.title || extractHandleFromUrl(r.url, comp.platform) || "Profilo",
+      url: r.url || "",
+      desc: (r.content || r.snippet || "").slice(0, 280)
+    }));
+    setSimilarItems(items);
     setSimilarRaw(JSON.stringify({ keywords, queries, results: allResults, raw: rawPayloads }, null, 2));
 
     if (allResults.length === 0) {
@@ -964,9 +971,34 @@ ${sources}`;
           )}
 
           {!scanning&&scanTab==="competitor"&&(
-            similarResult ? (
-              <div style={{background:"linear-gradient(135deg,#0a1628,#0d1f3c)",...glow("#f59e0b"),borderRadius:12,padding:16,fontSize:13,color:"#c8d8f0",lineHeight:1.8,whiteSpace:"pre-wrap",maxHeight:500,overflowY:"auto"}}>
-                {similarResult}
+            (similarItems.length>0 || similarResult) ? (
+              <div>
+                {similarItems.length>0 && (
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:10,marginBottom:12}}>
+                    {similarItems.map((it,i)=>(
+                      <div key={`${it.url}-${i}`} style={{background:"#070f1e",border:"1px solid #1e3a5f",borderRadius:10,padding:12}}>
+                        <div style={{fontSize:12,color:"#f59e0b",fontFamily:"monospace",fontWeight:700,marginBottom:6}}>
+                          {it.title}
+                        </div>
+                        {it.url && (
+                          <a href={it.url} target="_blank" rel="noreferrer" style={{fontSize:11,color:"#7a9bc0",fontFamily:"monospace",textDecoration:"none",display:"block",marginBottom:6,wordBreak:"break-all"}}>
+                            {it.url}
+                          </a>
+                        )}
+                        {it.desc && (
+                          <div style={{fontSize:11,color:"#4a6a8a",fontFamily:"monospace",lineHeight:1.5}}>
+                            {it.desc}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {similarResult && !similarResult.startsWith("Non ho potuto") && (
+                  <div style={{background:"linear-gradient(135deg,#0a1628,#0d1f3c)",...glow("#f59e0b"),borderRadius:12,padding:16,fontSize:13,color:"#c8d8f0",lineHeight:1.8,whiteSpace:"pre-wrap",maxHeight:320,overflowY:"auto"}}>
+                    {similarResult}
+                  </div>
+                )}
               </div>
             ) : (
               <div style={{color:"#2a4a6a",fontFamily:"monospace",fontSize:12}}>Nessun risultato competitor disponibile. Esegui prima la scansione.</div>
