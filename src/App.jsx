@@ -217,11 +217,14 @@ function TrendScanner() {
   const [loading,setLoading]=useState(false); const [result,setResult]=useState("");
   const runAI = async () => {
     setLoading(true); setResult("");
-    const {text} = await callClaude(`Nicchia: ${niche}`,`Genera trend PROBABILI:
-1.  TOP 5 TREND
-2.  3 ANGOLI VIRALI
-3.  TARGET PSICOLOGICO
- Specifica che sono stime AI. Rispondi in italiano.`});
+    const sys = [
+      "Genera trend PROBABILI:",
+      "1. TOP 5 TREND",
+      "2. 3 ANGOLI VIRALI",
+      "3. TARGET PSICOLOGICO",
+      "Specifica che sono stime AI. Rispondi in italiano."
+    ].join("\n");
+    const {text} = await callClaude(`Nicchia: ${niche}`, sys);
     setResult(text); setLoading(false);
   };
   return (
