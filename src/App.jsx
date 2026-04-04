@@ -852,6 +852,11 @@ ${sources}`;
             <div style={{fontSize:13,color:"#38bdf8",fontFamily:"monospace",fontWeight:600}}>🎬 {selectedComp.handle}</div>
             <div style={{fontSize:10,color:"#4a6a8a",fontFamily:"monospace"}}>🟢≥8 🟡≥6 🔴&lt;6</div>
           </div>
+          {selectedComp.searchKeywords?.trim() && (
+            <div style={{fontSize:10,color:"#2a4a6a",fontFamily:"monospace",marginBottom:10}}>
+              + parole chiave: {selectedComp.searchKeywords}
+            </div>
+          )}
 
           {scanning===selectedComp.id&&(
             <div>
