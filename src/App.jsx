@@ -369,18 +369,18 @@ function VideoCard({video,onDelete}) {
 }
 
 // Search strategies
-function buildSearchQueries(handle, platform, niche="") {
+function buildSearchQueries(handle, platform, keywords="") {
   const h = handle.replace("@", "");
-  const n = niche ? ` ${niche}` : "";
+  const k = keywords ? ` ${keywords}` : "";
   if(platform==="TikTok") return [
-    { label:"profilo + video", q:`site:tiktok.com/@${h} video tiktok${n}` },
-    { label:"profilo diretto", q:`site:tiktok.com/@${h} tiktok${n}` },
-    { label:"@handle", q:`"@${h}" tiktok video${n}` },
+    { label:"profilo + video", q:`site:tiktok.com/@${h} video tiktok${k}` },
+    { label:"profilo diretto", q:`site:tiktok.com/@${h} tiktok${k}` },
+    { label:"@handle", q:`"@${h}" tiktok video${k}` },
   ];
   return [
-    { label:"profilo diretto", q:`site:instagram.com/${h}/ instagram${n}` },
-    { label:"post del profilo", q:`site:instagram.com/${h}/p/ instagram${n}` },
-    { label:"@handle", q:`"@${h}" instagram reel${n}` },
+    { label:"profilo diretto", q:`site:instagram.com/${h}/ instagram${k}` },
+    { label:"post del profilo", q:`site:instagram.com/${h}/p/ instagram${k}` },
+    { label:"@handle", q:`"@${h}" instagram reel${k}` },
   ];
 }
 
@@ -462,9 +462,8 @@ function CompetitorRow({comp,onDelete,onScan,onProfile,onDiscover,scanning,analy
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           <span style={{fontSize:20}}>{icon}</span>
           <div>
-            <div style={{color:"#e8f4ff",fontWeight:600,fontSize:14}}>{comp.name?.trim() || comp.handle}</div>
-            {comp.name?.trim() && <div style={{color:"#7a9bc0",fontSize:11,fontFamily:"monospace"}}>{comp.handle}</div>}
-            <div style={{color:"#4a6a8a",fontSize:11,fontFamily:"monospace"}}>{comp.platform} · {comp.niche}</div>
+            <div style={{color:"#e8f4ff",fontWeight:600,fontSize:14}}>{comp.handle}</div>
+            <div style={{color:"#4a6a8a",fontSize:11,fontFamily:"monospace"}}>{comp.platform}</div>
             {comp.searchKeywords?.trim() && <div style={{color:"#2a4a6a",fontSize:10,fontFamily:"monospace"}}>Keywords: {comp.searchKeywords}</div>}
           </div>
         </div>
@@ -488,8 +487,7 @@ function CompetitorRow({comp,onDelete,onScan,onProfile,onDiscover,scanning,analy
 
 function Competitors() {
   const [competitors,setCompetitors]=useState([]);
-  const [name,setName]=useState("");
-  const [handle,setHandle]=useState(""); const [platform,setPlatform]=useState("TikTok"); const [niche,setNiche]=useState("Nutrizione");
+  const [handle,setHandle]=useState(""); const [platform,setPlatform]=useState("TikTok");
   const [searchKeywords,setSearchKeywords]=useState("");
   const [scanning,setScanning]=useState(null); const [analyzing,setAnalyzing]=useState(null); const [discovering,setDiscovering]=useState(null); const [batchLoading,setBatchLoading]=useState(false);
   const [similarResult,setSimilarResult]=useState(""); const [similarComp,setSimilarComp]=useState(null);
@@ -508,8 +506,7 @@ function Competitors() {
   const addCompetitor = async () => {
     if(!handle.trim()) return;
     const clean=handle.replace(/^@/,"").replace(/https?:\/\/(www\.)?(instagram|tiktok)\.com\//,"").replace(/\?.*/,"").replace(/\//g,"");
-    await persist([...competitors,{id:Date.now().toString(),name:name.trim(),handle:"@"+clean,platform,niche,searchKeywords:searchKeywords.trim(),addedAt:Date.now(),lastScan:null,videos:[]}]);
-    setName("");
+    await persist([...competitors,{id:Date.now().toString(),handle:"@"+clean,platform,searchKeywords:searchKeywords.trim(),addedAt:Date.now(),lastScan:null,videos:[]}]);
     setHandle("");
     setSearchKeywords("");
   };
@@ -529,7 +526,7 @@ function Competitors() {
   const scanContent = async (comp) => {
     setScanning(comp.id); setSelectedComp({...comp,videos:[]}); setProfileResult("");
     setProfileTitle(""); setScanLog([]); setRawResponse(""); setShowManual(false);
-    const queries = buildSearchQueries(comp.handle, comp.platform, comp.niche);
+    const queries = buildSearchQueries(comp.handle, comp.platform, comp.searchKeywords || "");
     let allVideos = [];
     const log = [];
 
@@ -619,8 +616,9 @@ function Competitors() {
     setScanLog(["Analisi manuale - analisi link incollati..."]);
 
     const lines = manualLinks.split("\n").filter(l=>l.trim().length>5).slice(0,15);
+    const kw = comp.searchKeywords ? `Parole chiave: ${comp.searchKeywords}` : "Parole chiave: (nessuna)";
     const {text} = await callClaude(
-      `Analizza questi link/testi di video ${comp.platform} del profilo "${comp.handle}" (nicchia: "${comp.niche}"):\n${lines.join("\n")}`,
+      `Analizza questi link/testi di video ${comp.platform} del profilo "${comp.handle}". ${kw}\n${lines.join("\n")}`,
       `Sei un analista di contenuti. Per ogni link o caption fornita assegna un voto virale e analisi.\nRispondi SOLO con JSON:\n{"videos":[{"title":"titolo o prima parte caption","url":"url se presente altrimenti stringa vuota","score":7,"tags":[],"analysis":"perche questo score"}]}`
     );
     const {videos, debugInfo} = extractVideos(text);
@@ -641,8 +639,9 @@ function Competitors() {
       const tags = Array.isArray(v.tags) ? v.tags.join(" ") : "";
       return `- ${v.title || "Video"} | ${v.url || ""} | score ${v.score || ""} | ${tags} | ${v.analysis || ""}`;
     }).join("\n");
+    const kw = comp.searchKeywords ? `Parole chiave: ${comp.searchKeywords}` : "Parole chiave: (nessuna)";
     const {text} = await callClaude(
-      `Profilo: ${comp.handle}\nPiattaforma: ${comp.platform}\nNicchia: ${comp.niche}\nVideo trovati:\n${lines}`,
+      `Profilo: ${comp.handle}\nPiattaforma: ${comp.platform}\n${kw}\nVideo trovati:\n${lines}`,
       PROFILE_SYSTEM
     );
     const { json } = extractJsonBlock(text);
@@ -660,7 +659,7 @@ function Competitors() {
     setSimilarDebugInfo(""); setSimilarRaw("");
 
     const list = Array.isArray(overrideKeywords) ? overrideKeywords : [];
-    const keywordsText = list.length ? list.join(" ") : (comp.analysisKeywords?.length ? comp.analysisKeywords.join(" ") : (comp.searchKeywords || comp.niche || ""));
+    const keywordsText = list.length ? list.join(" ") : (comp.analysisKeywords?.length ? comp.analysisKeywords.join(" ") : (comp.searchKeywords || ""));
     const keywords = keywordsText.trim();
     const queries = buildSimilarQueries(comp.platform, keywords);
     const log = [];
@@ -780,7 +779,7 @@ ${sources}`;
   const analyzeAll = async () => {
     if(competitors.length<2) return;
     setBatchLoading(true); setProfileResult(""); setProfileTitle("📊 Analisi Comparativa");
-    const handles=competitors.map(c=>`${c.handle} (${c.platform}, ${c.niche})`).join("\n");
+    const handles=competitors.map(c=>`${c.handle} (${c.platform}${c.searchKeywords?`, ${c.searchKeywords}`:""})`).join("\n");
     const {text}=await callClaude(`Confronta:\n${handles}`,`Confronta e analizza:\n1. 🏆 RANKING\n2. 📊 PUNTI FORZA/DEBOLEZZA\n3. 🎯 GAP DI MERCATO\n4. 🔥 PATTERN VINCENTI\n5. 💡 STRATEGIA DIFFERENZIANTE\n6. ⚡ 3 AZIONI IMMEDIATE\nRispondi in italiano.`);
     setProfileResult(text); setBatchLoading(false);
   };
@@ -791,15 +790,11 @@ ${sources}`;
       <div style={{background:"#070f1e",border:"1px solid #1e3a5f",borderRadius:10,padding:14,marginBottom:18}}>
         <div style={{fontSize:10,color:"#38bdf8",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontFamily:"monospace"}}>+ Aggiungi Competitor</div>
         <div style={{marginBottom:10}}>
-          <label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Nome</label>
-          <input value={name} onChange={e=>setName(e.target.value)} placeholder="Nome o brand (opzionale)" style={{width:"100%",padding:"10px 12px",background:"#04080f",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
-        </div>
-        <div style={{marginBottom:10}}>
           <label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Handle o URL profilo</label>
           <input value={handle} onChange={e=>setHandle(e.target.value)} placeholder="@beardedscara o URL" onKeyDown={e=>e.key==="Enter"&&addCompetitor()} style={{width:"100%",padding:"10px 12px",background:"#04080f",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
         </div>
         <div style={{marginBottom:10}}>
-          <label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Parole chiave per simili (opzionale)</label>
+          <label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Parole chiave (opzionale)</label>
           <input value={searchKeywords} onChange={e=>setSearchKeywords(e.target.value)} placeholder="es. beard tips viaggio germany" style={{width:"100%",padding:"10px 12px",background:"#04080f",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
         </div>
         <div style={{display:"flex",gap:8,marginBottom:12}}>
@@ -807,12 +802,6 @@ ${sources}`;
             <label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Piattaforma</label>
             <select value={platform} onChange={e=>setPlatform(e.target.value)} style={{width:"100%",padding:"9px 10px",background:"#04080f",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:13,outline:"none",fontFamily:"inherit"}}>
               <option>TikTok</option><option>Instagram</option>
-            </select>
-          </div>
-          <div style={{flex:1}}>
-            <label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Nicchia</label>
-            <select value={niche} onChange={e=>setNiche(e.target.value)} style={{width:"100%",padding:"9px 10px",background:"#04080f",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:13,outline:"none",fontFamily:"inherit"}}>
-              {NICHES.map(n=><option key={n}>{n}</option>)}
             </select>
           </div>
         </div>
