@@ -817,7 +817,7 @@ function Competitors() {
     const baseContext = `Profilo di partenza: ${comp.handle}\nPiattaforma: ${comp.platform}\nParole chiave: ${keywords || "(nessuna)"}`;
 
     const evalPrompt = `${baseContext}\n\nValuta se questi profili sono competitor rilevanti in base ai contenuti. Usa SOLO le FONTI.\n\nFONTI PROFILI:\n${profileSources || "Nessuna fonte profilo."}`;
-    const evalSystem = `Rispondi SOLO con JSON:\n{"competitors":[{"handle":"@handle","profileUrl":"https://...","summary":"1-2 frasi sul profilo","relevance":"alta|media|bassa","reason":"perche e rilevante"}]}\nRegole: includi solo competitor con relevance alta o media. Se non ci sono, usa lista vuota.`;
+    const evalSystem = `Rispondi SOLO con JSON:\n{"competitors":[{"handle":"@handle","profileUrl":"https://...","summary":"1-2 frasi sul profilo","relevance":"alta|media|bassa","reason":"perche e rilevante o non rilevante"}]}\nRegole: includi TUTTI i profili trovati nelle fonti. Se non sono rilevanti, imposta relevance:"bassa".`;
     const evalResp = await callLLM({ provider: ACTIVE_PROVIDER, prompt: evalPrompt, system: evalSystem });
     const evalJson = extractJsonBlock(evalResp.text || "").json;
 
@@ -825,7 +825,8 @@ function Competitors() {
       const comps = evalJson.competitors.filter(c=>c.handle).map(c=>({
         title: c.handle,
         url: c.profileUrl || "",
-        desc: [c.summary, c.reason].filter(Boolean).join(" · ")
+        desc: [c.summary, c.reason].filter(Boolean).join(" · "),
+        relevance: c.relevance || "bassa"
       }));
       setSimilarItems(comps);
     } else {
@@ -833,7 +834,7 @@ function Competitors() {
         const results = profileSourcesByHandle[h] || [];
         const url = results[0]?.url || "";
         const desc = (results[0]?.content || results[0]?.snippet || "").slice(0, 220);
-        return { title: h, url, desc };
+        return { title: h, url, desc, relevance: "bassa" };
       });
       setSimilarItems(fallbackItems);
     }
@@ -1071,8 +1072,15 @@ ${sources}`;
               <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:10}}>
                 {similarItems.map((it,i)=>(
                   <div key={`${it.url}-${i}`} style={{background:"#070f1e",border:"1px solid #1e3a5f",borderRadius:10,padding:12}}>
-                    <div style={{fontSize:12,color:"#f59e0b",fontFamily:"monospace",fontWeight:700,marginBottom:6}}>
-                      {it.title}
+                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:6}}>
+                      <div style={{fontSize:12,color:"#f59e0b",fontFamily:"monospace",fontWeight:700}}>
+                        {it.title}
+                      </div>
+                      {it.relevance && (
+                        <span style={{fontSize:9,padding:"2px 6px",borderRadius:6,border:"1px solid #1e3a5f",color:it.relevance==="alta"?"#00ff9d":it.relevance==="media"?"#f59e0b":"#4a6a8a",fontFamily:"monospace",textTransform:"uppercase"}}>
+                          {it.relevance}
+                        </span>
+                      )}
                     </div>
                     {it.url && (
                       <a href={it.url} target="_blank" rel="noreferrer" style={{fontSize:11,color:"#7a9bc0",fontFamily:"monospace",textDecoration:"none",display:"block",marginBottom:6,wordBreak:"break-all"}}>
