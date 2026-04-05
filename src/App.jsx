@@ -331,38 +331,40 @@ function VideoStrategy({selectedAccounts=[], onClearAccounts}) {
   const [platform,setPlatform]=useState("Instagram Reels"); const [loading,setLoading]=useState(false); const [result,setResult]=useState("");
   const [rawText, setRawText] = useState(""); const [debugInfo, setDebugInfo] = useState("");
   
-  const run = async () => {
-    if(!goal) return; setLoading(true); setResult(""); setRawText(""); setDebugInfo("");
-    setDebugInfo("Chiamata AI per Genera Strategia da form manuale...");
-    const {text, raw, error} = await callAI(`Obiettivo: ${goal}\nTarget: ${audience||"n/a"}\nPiattaforma: ${platform}`,`Sei uno stratega di content marketing esperto. \nFornisci una strategia MOLTO CONCISA e schematica per restare entro i limiti di tempo:\n1. 🎬 STRUTTURA VIDEO \n2. 📋 PIANO EDITORIALE 7 GIORNI (solo titoli)\n3. 🔁 FRAMEWORK RIPETIBILE\n4. 📈 KPI PRINCIPALI\n5. 🤝 CTA STRATEGY\nRispondi in italiano con un output compatto.`);
-    if(error) setDebugInfo(prev => prev + `\n❌ ERRORE RESTITUITO: ${JSON.stringify(error)}`);
-    else setDebugInfo(prev => prev + `\n✅ Risposta Ricevuta (${text.length} caratteri)`);
-    setRawText(typeof raw === "string" ? raw : JSON.stringify(raw, null, 2) || "");
-    setResult(text); setLoading(false);
-  };
-  const runFromCompetitors = async () => {
-    if(!selectedAccounts.length) return; setLoading(true); setResult(""); setRawText(""); setDebugInfo("");
-    const accountList = selectedAccounts.map(a=>{
-      let out = `- ${a.handle} (${a.platform})${a.profileUrl?` → ${a.profileUrl}`:""}`;
-      if(a.profileAnalysis) out += `\n  [ANALISI PROFILO]: ${a.profileAnalysis.replace(/\n+/g," ").slice(0, 1000)}`;
-      if(a.videos && a.videos.length > 0) {
-        const topVids = a.videos.filter(v=>v.title).sort((v1,v2)=>(v2.score||0)-(v1.score||0)).slice(0,6).map(v=>v.title).join(" | ");
-        out += `\n  [VIDEO TOP ESTRATTI]: ${topVids}`;
-      }
-      return out;
-    }).join("\n\n");
-    const basePrompt = `Dati completi dei competitor selezionati:\n${accountList}`;
-    const userGoal = goal ? `\n\nOBIETTIVO DEL CLIENTE: ${goal}` : "";
-    const userAudience = audience ? `\nTARGET DEL CLIENTE: ${audience}` : "";
-    const userPlatform = platform ? `\nPIATTAFORMA PRINCIPALE: ${platform}` : "";
-    const finalPrompt = basePrompt + userGoal + userAudience + userPlatform;
+  const generateStrategy = async () => {
+    if(!selectedAccounts.length && !goal) return;
+    setLoading(true); setResult(""); setRawText(""); setDebugInfo("");
 
-    setDebugInfo(`Chiamata AI per Genera Strategia dai Competitor...\nLunghezza dati input: ${finalPrompt.length} caratteri.\nCompetitor inseriti: ${selectedAccounts.length}\n\n--- INIZIO PAYLOAD INVIATO ALL'AI ---\n${finalPrompt}\n--- FINE PAYLOAD ---`);
-    const {text, raw, error} = await callAI(
-      finalPrompt,
-      `Sei uno stratega di content marketing. Leggi l'analisi profilo e i titoli dei video virali estratti da questi competitor e crea una strategia differenziante ESTREMAMENTE CONCISA E SCHEMATICA per far raggiungere al cliente il suo OBIETTIVO specifico:\n1. 🔍 ANALISI COMUNE (brevi pattern emersi dai dati)\n2. 🎯 GAP DI MERCATO (2 angoli ignorati)\n3. 🎬 STRATEGIA DIFFERENZIANTE \n4. 📋 PIANO EDITORIALE (idee per 7 giorni)\n5. 🔁 FRAMEWORK RIPETIBILE\n6. ⚡ 3 AZIONI IMMEDIATE\nRispondi in italiano in modo ultra-compatto per limiti di calcolo server.`
-    );
-    if(error) setDebugInfo(prev => prev + `\n\n❌ ERRORE RESTITUITO DAL SERVER LLM: ${JSON.stringify(error)}`);
+    let finalPrompt = "";
+    let systemPrompt = "";
+
+    if (selectedAccounts.length > 0) {
+      const accountList = selectedAccounts.map(a=>{
+        let out = `- ${a.handle} (${a.platform})${a.profileUrl?` → ${a.profileUrl}`:""}`;
+        if(a.profileAnalysis) out += `\n  [ANALISI PROFILO]: ${a.profileAnalysis.replace(/\n+/g," ").slice(0, 1000)}`;
+        if(a.videos && a.videos.length > 0) {
+          const topVids = a.videos.filter(v=>v.title).sort((v1,v2)=>(v2.score||0)-(v1.score||0)).slice(0,6).map(v=>v.title).join(" | ");
+          out += `\n  [VIDEO TOP ESTRATTI]: ${topVids}`;
+        }
+        return out;
+      }).join("\n\n");
+      const basePrompt = `Dati completi dei competitor selezionati:\n${accountList}`;
+      const userGoal = goal ? `\n\nOBIETTIVO DEL CLIENTE: ${goal}` : "";
+      const userAudience = audience ? `\nTARGET DEL CLIENTE: ${audience}` : "";
+      const userPlatform = platform ? `\nPIATTAFORMA PRINCIPALE: ${platform}` : "";
+      finalPrompt = basePrompt + userGoal + userAudience + userPlatform;
+      systemPrompt = `Sei uno stratega di content marketing. Leggi l'analisi profilo e i titoli dei video virali estratti da questi competitor e crea una strategia differenziante ESTREMAMENTE CONCISA E SCHEMATICA per far raggiungere al cliente il suo OBIETTIVO specifico:\n1. 🔍 ANALISI COMUNE (brevi pattern emersi dai dati)\n2. 🎯 GAP DI MERCATO (2 angoli ignorati)\n3. 🎬 STRATEGIA DIFFERENZIANTE \n4. 📋 PIANO EDITORIALE (idee per 7 giorni)\n5. 🔁 FRAMEWORK RIPETIBILE\n6. ⚡ 3 AZIONI IMMEDIATE\nRispondi in italiano in modo ultra-compatto per limiti di calcolo server.`;
+      
+      setDebugInfo(`Chiamata AI per Genera Strategia dai Competitor...\nLunghezza dati input: ${finalPrompt.length} caratteri.\nCompetitor inseriti: ${selectedAccounts.length}\n\n--- INIZIO PAYLOAD INVIATO ALL'AI ---\n${finalPrompt}\n--- FINE PAYLOAD ---`);
+    } else {
+      finalPrompt = `Obiettivo: ${goal}\nTarget: ${audience||"n/a"}\nPiattaforma: ${platform}`;
+      systemPrompt = `Sei uno stratega di content marketing esperto. \nFornisci una strategia MOLTO CONCISA e schematica per restare entro i limiti di tempo:\n1. 🎬 STRUTTURA VIDEO \n2. 📋 PIANO EDITORIALE 7 GIORNI (solo titoli)\n3. 🔁 FRAMEWORK RIPETIBILE\n4. 📈 KPI PRINCIPALI\n5. 🤝 CTA STRATEGY\nRispondi in italiano con un output compatto.`;
+      setDebugInfo("Chiamata AI per Genera Strategia da form manuale...");
+    }
+
+    const {text, raw, error} = await callAI(finalPrompt, systemPrompt);
+
+    if(error) setDebugInfo(prev => prev + `\n\n❌ ERRORE RESTITUITO: ${JSON.stringify(error)}`);
     else setDebugInfo(prev => prev + `\n\n✅ Risposta Ricevuta con successo (${text.length} caratteri elaborati)`);
     setRawText(typeof raw === "string" ? raw : JSON.stringify(raw, null, 2) || "");
     setResult(text); setLoading(false);
@@ -380,15 +382,14 @@ function VideoStrategy({selectedAccounts=[], onClearAccounts}) {
               <span key={a.handle} style={{fontSize:11,color:"#a78bfa",background:"#1a1035",border:"1px solid #a78bfa33",borderRadius:6,padding:"3px 8px",fontFamily:"monospace"}}>{a.handle}</span>
             ))}
           </div>
-          <Btn onClick={runFromCompetitors} loading={loading} color="#a78bfa">
-            {loading?"Analisi…":"🎬 Genera strategia dai competitor"}
-          </Btn>
         </div>
       )}
-      <div style={{marginBottom:14}}><label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Obiettivo principale *</label><Textarea value={goal} onChange={setGoal} placeholder="es. acquisire clienti per consulenze..." rows={2}/></div>
+      <div style={{marginBottom:14}}><label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Obiettivo principale {selectedAccounts.length===0?"*":""}</label><Textarea value={goal} onChange={setGoal} placeholder="es. acquisire clienti per consulenze..." rows={2}/></div>
       <div style={{marginBottom:14}}><label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Target audience</label><Textarea value={audience} onChange={setAudience} placeholder="es. donne 30-45 anni..." rows={2}/></div>
       <Sel value={platform} onChange={setPlatform} options={PLATFORMS} label="Piattaforma principale"/>
-      <Btn onClick={run} loading={loading} color="#a78bfa">{loading?"Costruzione…":"🎬 Crea Strategia"}</Btn>
+      <Btn onClick={generateStrategy} loading={loading} color="#a78bfa">
+        {loading?"Costruzione…":selectedAccounts.length>0?"🎬 Genera strategia dai competitor":"🎬 Crea Strategia"}
+      </Btn>
       {loading&&<Spinner color="#a78bfa"/>}
       <ResultBox text={result} color="#a78bfa"/>
       <DebugPanel info={debugInfo} rawText={rawText} />
