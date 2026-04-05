@@ -380,15 +380,16 @@ function buildSearchQueries(handle, platform, keywords="") {
   return [
     { label:"profilo diretto", q:`site:instagram.com/${h}/ instagram${k}` },
     { label:"post del profilo", q:`site:instagram.com/${h}/p/ instagram${k}` },
-    { label:"@handle", q:`"@${h}" instagram reel${k}` },
+    { label:"reel", q:`"${h}" instagram reel${k}` },
+    { label:"post", q:`"${h}" instagram post${k}` },
   ];
 }
 
 function buildSimilarQueries(platform, keywords="") {
   const k = keywords ? ` ${keywords}` : "";
   if(platform==="TikTok") return [
-    { label:"site", q:`site:tiktok.com tiktok video creator${k}`, useSite:true },
-    { label:"web", q:`tiktok video creator${k}`, useSite:false },
+    { label:"web", q:`tiktok creator${k}`, useSite:false },
+    { label:"web 2", q:`tiktok profili${k}`, useSite:false },
   ];
   return [
     { label:"site", q:`site:instagram.com instagram reel creator${k}`, useSite:true },
@@ -418,7 +419,12 @@ function filterVideosByHandle(videos, handle, platform) {
   return videos.filter(v => {
     const url = (v.url||"").toLowerCase();
     if(platform==="TikTok") return url.includes(`/@${h}/`);
-    if(platform==="Instagram") return url.includes(`instagram.com/${h}`);
+    if(platform==="Instagram") {
+      if(url.includes(`instagram.com/${h}`)) return true;
+      if(url.includes("instagram.com/reel/")) return true;
+      if(url.includes("instagram.com/p/")) return true;
+      return false;
+    }
     return true;
   });
 }
@@ -453,7 +459,7 @@ IMPORTANTISSIMO: rispondi SOLO con questo JSON esatto, zero testo prima o dopo:
 Regole:
 - Includi SOLO URL che appartengono al profilo indicato
 - Per TikTok accetta solo URL con /@handle/
-- Per Instagram accetta solo URL che contengono instagram.com/handle
+- Per Instagram accetta URL dei contenuti anche se non contengono l'handle (es. /reel/ o /p/)
 - score da 1-10 basato su hook del titolo, emozione, tema trending
 - se non trovi video con URL specifici restituisci {"videos":[],"searchNote":"motivo"}
 - NON inventare URL, usa solo quelli reali dalle FONTI
@@ -597,6 +603,48 @@ function Competitors() {
       } catch(e){
         log.push(`   ❌ Eccezione: ${e.message}`);
         setScanLog([...log]);
+      }
+    }
+
+    // Fallback per Instagram: riprova senza filtro dominio se zero risultati
+    if(allVideos.length===0 && comp.platform==="Instagram") {
+      log.push(`\n🔁 Fallback Instagram: riprovo senza filtro dominio`);
+      setScanLog([...log]);
+      const fallbackQueries = buildSearchQueries(comp.handle, comp.platform, comp.searchKeywords || "");
+      for(const {label,q} of fallbackQueries){
+        log.push(`   Query fallback: "${q}"`);
+        setScanLog([...log]);
+        try {
+          const {text, raw, error} = await callSearchLLM({
+            query: q,
+            prompt: `Cerca i contenuti di "${comp.handle}" su Instagram. Trova reel o post con URL specifici.`,
+            system: SCAN_SYSTEM,
+            maxResults: 8
+          });
+          if(error){
+            log.push(`   ❌ Errore API: ${error.message||JSON.stringify(error)}`);
+            setScanLog([...log]);
+            setRawResponse(JSON.stringify(raw,null,2));
+            continue;
+          }
+          log.push(`   📥 Risposta ricevuta (${text.length} char)`);
+          setRawResponse(text);
+          const {videos, debugInfo} = extractVideos(text);
+          const filtered = filterVideosByHandle(videos, comp.handle, comp.platform);
+          const validated = await validateProfileUrls(filtered, comp.platform);
+          log.push(`   ${debugInfo}`);
+          if(validated.length>0){
+            const existingUrls = new Set(allVideos.map(v=>v.url));
+            const newVids = validated.filter(v=>!existingUrls.has(v.url));
+            allVideos=[...allVideos,...newVids];
+            log.push(`   ✅ Totale video unici: ${allVideos.length}`);
+            setScanLog([...log]);
+            break;
+          }
+        } catch(e){
+          log.push(`   ❌ Eccezione: ${e.message}`);
+          setScanLog([...log]);
+        }
       }
     }
 
