@@ -2,14 +2,14 @@ import { useState, useEffect } from "react";
 
 const TABS = [
     { id:"competitors", label:"Competitor", icon:"🕵️" },
-    { id:"trend", label:"Trend", icon:"📡" },
-    { id:"hook", label:"Hook", icon:"🎣" },
+    { id:"explorer", label:"Explorer", icon:"🌍" },
     { id:"strategy", label:"Strategia", icon:"🎬" },
+    { id:"hook", label:"Hook", icon:"🎣" },
     { id:"viral", label:"Virale", icon:"🔥" },
 ];
 const NICHES = ["Nutrizione","Fitness","Benessere mentale","Cucina sana","Dimagrimento","Sport & Performance"];
 const PLATFORMS = ["TikTok","Instagram Reels","YouTube Shorts","LinkedIn"];
-const TAB_COLORS = { trend:"#00ff9d", hook:"#ff6b35", strategy:"#a78bfa", viral:"#f59e0b", competitors:"#38bdf8" };
+const TAB_COLORS = { explorer:"#00ff9d", hook:"#ff6b35", strategy:"#a78bfa", viral:"#f59e0b", competitors:"#38bdf8" };
 const glow = (c="#00ff9d") => ({ boxShadow:`0 0 20px ${c}22,0 0 40px ${c}11`, border:`1px solid ${c}44` });
 
 // ─── LLM API (Netlify Function) ───────────────────────────────────────────────────
@@ -297,29 +297,104 @@ function Btn({onClick,loading,children,color="#00ff9d",small=false}) {
   );
 }
 
-// ─── TREND ────────────────────────────────────────────────────────
-function TrendScanner() {
-  const [niche,setNiche]=useState("Nutrizione");
-  const [loading,setLoading]=useState(false); const [result,setResult]=useState("");
-  const runAI = async () => {
-    setLoading(true); setResult("");
-    const sys = [
-      "Genera trend PROBABILI:",
-      "1. TOP 5 TREND",
-      "2. 3 ANGOLI VIRALI",
-      "3. TARGET PSICOLOGICO",
-      "Specifica che sono stime AI. Rispondi in italiano."
-    ].join("\n");
-    const {text} = await callAI(`Nicchia: ${niche}`, sys);
-    setResult(text); setLoading(false);
+// ─── EXPLORER ─────────────────────────────────────────────────────
+function Explorer({onGoToScan}) {
+  const [mode, setMode] = useState("creator"); // "creator" | "ideas"
+  const [platform, setPlatform] = useState("TikTok");
+  const [query, setQuery] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [creators, setCreators] = useState([]);
+  const [ideasResult, setIdeasResult] = useState("");
+  const [searched, setSearched] = useState(false);
+
+  const handleSearch = async () => {
+    if(!query.trim()) return;
+    setLoading(true); setCreators([]); setIdeasResult(""); setSearched(true);
+    
+    if(mode === "creator") {
+      const plat = platform === "TikTok" ? "tiktok" : "instagram";
+      const domain = platform === "TikTok" ? "tiktok.com" : "instagram.com";
+      const { results } = await tavilySearch({
+        query: `${query} ${plat} profilo`,
+        maxResults: 8,
+        searchDepth: "basic",
+        includeDomains: [domain]
+      });
+      
+      const arr = [];
+      (results||[]).forEach(r => {
+        let handleMatch = r.url.match(/tiktok\.com\/@([^\/\?]+)/);
+        if(!handleMatch) handleMatch = r.url.match(/instagram\.com\/([^\/\?]+)/);
+        if(handleMatch) {
+          const handle = handleMatch[1];
+          // Prevenire handle spazzatura o troppo lunghi spesso catturati da tavily per sbaglio
+          if(handle.length < 30 && !arr.some(a=>a.handle===handle)) {
+             arr.push({ handle: `@${handle}`, profileUrl: r.url, desc: (r.content||r.snippet||"").slice(0, 200) });
+          }
+        }
+      });
+      setCreators(arr);
+    } else {
+      const prompt = `Trova trend, format video e idee geniali per: ${query}
+Piattaforma: ${platform}
+Restituisci la tua analisi usando un formato Markdown ricco (Usa ampiamente titoli ##, ###, liste puntate e numerate).`;
+      
+      const {text} = await callSearchLLM({
+        query: `trend virali format video ${query} ${platform}`,
+        prompt,
+        system: "Sei un content analyst esperto di algoritmi social e format virali."
+      });
+      setIdeasResult(text);
+    }
+    setLoading(false);
   };
+
   return (
     <div>
-      <Sel value={niche} onChange={setNiche} options={NICHES} label="Nicchia"/>
-      <div style={{background:"#2a1a0a",border:"1px solid #f59e0b44",borderRadius:8,padding:"10px 14px",marginBottom:14,fontSize:12,color:"#f59e0b",fontFamily:"monospace"}}>Attenzione: trend probabili AI, non dati real-time.</div>
-      <Btn onClick={runAI} loading={loading} color="#00ff9d">{loading?"Generazione?":"Genera Trend AI"}</Btn>
-      {loading&&<Spinner/>}
-      <ResultBox text={result} color="#00ff9d"/>
+      <div style={{display:"flex",gap:6,marginBottom:16}}>
+        <button onClick={()=>{setMode("creator"); setSearched(false);}} style={{flex:1,padding:"10px",background:mode==="creator"?"#00ff9d22":"#060d1a",border:mode==="creator"?"1px solid #00ff9d":"1px solid #1e3a5f",borderRadius:8,color:mode==="creator"?"#00ff9d":"#4a6a8a",fontSize:13,fontFamily:"monospace",fontWeight:"bold"}}>🕵 Cerca Creator</button>
+        <button onClick={()=>{setMode("ideas"); setSearched(false);}} style={{flex:1,padding:"10px",background:mode==="ideas"?"#00ff9d22":"#060d1a",border:mode==="ideas"?"1px solid #00ff9d":"1px solid #1e3a5f",borderRadius:8,color:mode==="ideas"?"#00ff9d":"#4a6a8a",fontSize:13,fontFamily:"monospace",fontWeight:"bold"}}>💡 Cerca Idee & Format</button>
+      </div>
+
+      <div style={{background:"#070f1e",border:"1px solid #1e3a5f",borderRadius:10,padding:14,marginBottom:18}}>
+        <Sel value={platform} onChange={setPlatform} options={PLATFORMS.slice(0,2)} label="Piattaforma"/>
+        <div style={{marginBottom:14}}>
+          <label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>
+            {mode==="creator"?"Che tipo di profili cerchi?":"Cosa vuoi esplorare?"}
+          </label>
+          <Textarea value={query} onChange={setQuery} placeholder={mode==="creator"?"es. nutrizionista sportivo vegano":"es. format video estivi per personal trainer"} rows={2}/>
+        </div>
+        <Btn onClick={handleSearch} loading={loading} color="#00ff9d">{loading?"Ricerca…":mode==="creator"?"🌍 Trova Profili":"🌍 Trova Idee"}</Btn>
+      </div>
+
+      {loading&&<Spinner color="#00ff9d"/>}
+
+      {!loading && searched && mode === "creator" && (
+        <div style={{marginTop: 20}}>
+          <div style={{fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase",marginBottom:10,fontFamily:"monospace"}}>Risultati ({creators.length})</div>
+          {creators.length > 0 ? creators.map((it, i) => (
+             <CollapsibleSection key={`${it.handle}-${i}`} title={
+               <span style={{display:"flex",alignItems:"center",gap:8}}>
+                 {it.handle}
+                 <button onClick={e=>{e.stopPropagation(); onGoToScan(it.handle, platform);}} style={{background:"#0a1628",border:`1px solid #00ff9d66`,color:"#00ff9d",borderRadius:5,padding:"4px 8px",cursor:"pointer",fontSize:11,fontFamily:"monospace",lineHeight:1.4}}>
+                   🔍 Scansiona
+                 </button>
+               </span>
+             } icon="🌍" color="#00ff9d" defaultOpen={false}>
+               {it.profileUrl&&<a href={it.profileUrl} target="_blank" rel="noreferrer" style={{display:"inline-block",color:"#00ff9d",fontFamily:"monospace",fontSize:12,marginBottom:8,textDecoration:"none",fontWeight:700}}>{it.profileUrl}</a>}
+               {it.desc&&<div style={{color:"#8aa8c8",lineHeight:1.6,fontSize:11}}>{it.desc}</div>}
+             </CollapsibleSection>
+          )) : <ResultBox text="Nessun profilo trovato. Prova con altre parole chiave." color="#ff6b35"/>}
+        </div>
+      )}
+
+      {!loading && searched && mode === "ideas" && ideasResult && (
+        <div style={{marginTop: 20}}>
+          <div style={{padding:"14px",background:"#04080f",color:"#a3b8cc",lineHeight:1.75,border:"1px solid #1e3a5f",borderRadius:10}}>
+             {renderRichText(ideasResult)}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -773,7 +848,7 @@ function CompetitorRow({comp,onDelete,onScan,onView,onProfile,onDiscover,scannin
   );
 }
 
-function Competitors({selectedAccounts=[], onAddAccount, onRemoveAccount, onGoToStrategy}) {
+function Competitors({selectedAccounts=[], onAddAccount, onRemoveAccount, onGoToStrategy, pendingScan, clearPendingScan}) {
   const [competitors,setCompetitors]=useState([]);
   const [handle,setHandle]=useState(""); const [platform,setPlatform]=useState("TikTok");
   const [searchKeywords,setSearchKeywords]=useState("");
@@ -790,6 +865,24 @@ function Competitors({selectedAccounts=[], onAddAccount, onRemoveAccount, onGoTo
   const [manualLinks,setManualLinks]=useState(""); const [showManual,setShowManual]=useState(false);
 
   useEffect(()=>{ loadCompetitors().then(list=>{setCompetitors(list);setStorageReady(true);}); },[]);
+
+  useEffect(() => {
+    if (pendingScan && storageReady) {
+       const doScan = async () => {
+         const clean=pendingScan.handle.replace(/^@/,"");
+         const newComp = {id:Date.now().toString(),handle:"@"+clean,platform:pendingScan.platform,searchKeywords:"",addedAt:Date.now(),lastScan:null,videos:[]};
+         const currentList = await loadCompetitors();
+         let target = currentList.find(c => c.handle.toLowerCase() === newComp.handle.toLowerCase());
+         if(!target) {
+            target = newComp;
+            await persist([...currentList, target]);
+         }
+         scanContent(target);
+         clearPendingScan();
+       };
+       doScan();
+    }
+  }, [pendingScan, storageReady]);
 
   const persist = async (list) => { setCompetitors(list); await saveCompetitors(list); };
 
@@ -1351,6 +1444,7 @@ export default function App() {
   const [activeTab,setActiveTab]=useState("competitors");
   const [selectedAccounts,setSelectedAccounts]=useState([]);
   const [accountsLoaded,setAccountsLoaded]=useState(false);
+  const [pendingScan, setPendingScan]=useState(null);
   const activeColor=TAB_COLORS[activeTab];
 
   useEffect(()=>{ loadSelectedAccounts().then(list=>{ setSelectedAccounts(list); setAccountsLoaded(true); }); },[]);
@@ -1393,11 +1487,11 @@ export default function App() {
             <span style={{fontSize:18}}>{TABS.find(t=>t.id===activeTab)?.icon}</span>
             <h2 style={{margin:0,fontSize:17,color:activeColor,fontFamily:"monospace",letterSpacing:.5}}>{TABS.find(t=>t.id===activeTab)?.label}</h2>
           </div>
-          <div style={{display:activeTab==="trend"?"block":"none"}}><TrendScanner/></div>
+          <div style={{display:activeTab==="explorer"?"block":"none"}}><Explorer onGoToScan={(h, p)=> { setPendingScan({handle:h, platform:p}); setActiveTab("competitors"); }}/></div>
           <div style={{display:activeTab==="hook"?"block":"none"}}><HookGenerator/></div>
           <div style={{display:activeTab==="strategy"?"block":"none"}}><VideoStrategy selectedAccounts={selectedAccounts} onClearAccounts={clearAccounts}/></div>
           <div style={{display:activeTab==="viral"?"block":"none"}}><ViralFormula/></div>
-          <div style={{display:activeTab==="competitors"?"block":"none"}}><Competitors selectedAccounts={selectedAccounts} onAddAccount={addAccount} onRemoveAccount={removeAccount} onGoToStrategy={()=>setActiveTab("strategy")}/></div>
+          <div style={{display:activeTab==="competitors"?"block":"none"}}><Competitors selectedAccounts={selectedAccounts} onAddAccount={addAccount} onRemoveAccount={removeAccount} onGoToStrategy={()=>setActiveTab("strategy")} pendingScan={pendingScan} clearPendingScan={()=>setPendingScan(null)}/></div>
         </div>
         <p style={{textAlign:"center",color:"#1e3a5f",fontSize:10,marginTop:16,fontFamily:"monospace"}}>Powered by Gemini AI · Dati salvati in modo persistente</p>
       </div>
