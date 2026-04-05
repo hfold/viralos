@@ -2,10 +2,10 @@ import { useState, useEffect } from "react";
 
 const TABS = [
     { id:"competitors", label:"Competitor", icon:"🕵️" },
-    { id:"explorer", label:"Explorer", icon:"🌍" },
     { id:"strategy", label:"Strategia", icon:"🎬" },
     { id:"hook", label:"Hook", icon:"🎣" },
     { id:"viral", label:"Virale", icon:"🔥" },
+    { id:"explorer", label:"Explorer", icon:"🌍" },
 ];
 const NICHES = ["Nutrizione","Fitness","Benessere mentale","Cucina sana","Dimagrimento","Sport & Performance"];
 const PLATFORMS = ["TikTok","Instagram Reels","YouTube Shorts","LinkedIn"];
@@ -310,8 +310,15 @@ function Btn({onClick,loading,children,color="#00ff9d",small=false}) {
 }
 
 // ─── EXPLORER ─────────────────────────────────────────────────────
-function Explorer({onGoToScan}) {
+function Explorer({onGoToScan, requestedMode, clearRequestedMode}) {
   const [mode, setMode] = useState("creator"); // "creator" | "ideas"
+  
+  useEffect(() => {
+     if(requestedMode) {
+        setMode(requestedMode);
+        clearRequestedMode();
+     }
+  }, [requestedMode, clearRequestedMode]);
   const [platform, setPlatform] = useState("TikTok");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
@@ -566,7 +573,7 @@ function parseStrategyOutput(text) {
   return parsed;
 }
 
-function VideoStrategy({selectedAccounts=[], onClearAccounts}) {
+function VideoStrategy({selectedAccounts=[], onClearAccounts, onGoToExplorer}) {
   const [goal,setGoal]=useState(""); const [audience,setAudience]=useState("");
   const [platform,setPlatform]=useState("Instagram Reels"); const [loading,setLoading]=useState(false); const [result,setResult]=useState(null);
   const [rawText, setRawText] = useState(""); const [debugInfo, setDebugInfo] = useState("");
@@ -695,7 +702,11 @@ Rispondi in italiano. Usa SOLO i tag esatti.`;
           </div>
         </div>
       )}
-      <div style={{marginBottom:14}}><label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Obiettivo principale {selectedAccounts.length===0?"*":""}</label><Textarea value={goal} onChange={setGoal} placeholder="es. acquisire clienti per consulenze..." rows={2}/></div>
+      <div style={{marginBottom:14}}>
+        <label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Obiettivo principale {selectedAccounts.length===0?"*":""}</label>
+        <Textarea value={goal} onChange={setGoal} placeholder="es. acquisire clienti per consulenze..." rows={2}/>
+        <button onClick={() => onGoToExplorer("ideas")} style={{background:"none",border:"none",color:"#a78bfa",textDecoration:"underline",fontSize:11,cursor:"pointer",marginTop:6,fontFamily:"monospace"}}>Non sai da dove partire? 🌍 Trova spunti e format in Explorer</button>
+      </div>
       <div style={{marginBottom:14}}><label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Target audience</label><Textarea value={audience} onChange={setAudience} placeholder="es. donne 30-45 anni..." rows={2}/></div>
       <Sel value={platform} onChange={setPlatform} options={PLATFORMS} label="Piattaforma principale"/>
       <Btn onClick={generateStrategy} loading={loading} color="#a78bfa">
@@ -968,7 +979,7 @@ function CompetitorRow({comp,onDelete,onScan,onView,onProfile,onDiscover,scannin
   );
 }
 
-function Competitors({selectedAccounts=[], onAddAccount, onRemoveAccount, onGoToStrategy, pendingScan, clearPendingScan}) {
+function Competitors({selectedAccounts=[], onAddAccount, onRemoveAccount, onGoToStrategy, onGoToExplorer, pendingScan, clearPendingScan}) {
   const [competitors,setCompetitors]=useState([]);
   const [handle,setHandle]=useState(""); const [platform,setPlatform]=useState("TikTok");
   const [searchKeywords,setSearchKeywords]=useState("");
@@ -1403,6 +1414,9 @@ Rispondi SOLO con JSON: {"queries":["query1","query2","query3","query4"]}`;
           </div>
         </div>
         <Btn onClick={addCompetitor} loading={false} color="#38bdf8">🔍 Scansiona</Btn>
+        <div style={{marginTop: 10, textAlign: "left"}}>
+           <button onClick={()=>onGoToExplorer("creator")} style={{background:"none",border:"none",color:"#38bdf8",textDecoration:"underline",fontSize:11,cursor:"pointer",fontFamily:"monospace"}}>Zero idee sui nomi? 🌍 Cerca nuovi Competitor in Explorer</button>
+        </div>
       </div>
 
       {storageReady&&(
@@ -1565,6 +1579,12 @@ export default function App() {
   const [selectedAccounts,setSelectedAccounts]=useState([]);
   const [accountsLoaded,setAccountsLoaded]=useState(false);
   const [pendingScan, setPendingScan]=useState(null);
+  const [explorerRequestedMode, setExplorerRequestedMode] = useState(null);
+  
+  const handleGoToExplorer = (mode) => {
+     setExplorerRequestedMode(mode);
+     setActiveTab("explorer");
+  };
   const activeColor=TAB_COLORS[activeTab];
 
   useEffect(()=>{ loadSelectedAccounts().then(list=>{ setSelectedAccounts(list); setAccountsLoaded(true); }); },[]);
@@ -1607,11 +1627,11 @@ export default function App() {
             <span style={{fontSize:18}}>{TABS.find(t=>t.id===activeTab)?.icon}</span>
             <h2 style={{margin:0,fontSize:17,color:activeColor,fontFamily:"monospace",letterSpacing:.5}}>{TABS.find(t=>t.id===activeTab)?.label}</h2>
           </div>
-          <div style={{display:activeTab==="explorer"?"block":"none"}}><Explorer onGoToScan={(h, p)=> { setPendingScan({handle:h, platform:p}); setActiveTab("competitors"); }}/></div>
+          <div style={{display:activeTab==="competitors"?"block":"none"}}><Competitors selectedAccounts={selectedAccounts} onAddAccount={addAccount} onRemoveAccount={removeAccount} onGoToStrategy={()=>setActiveTab("strategy")} onGoToExplorer={handleGoToExplorer} pendingScan={pendingScan} clearPendingScan={()=>setPendingScan(null)}/></div>
+          <div style={{display:activeTab==="strategy"?"block":"none"}}><VideoStrategy selectedAccounts={selectedAccounts} onClearAccounts={clearAccounts} onGoToExplorer={handleGoToExplorer}/></div>
           <div style={{display:activeTab==="hook"?"block":"none"}}><HookGenerator/></div>
-          <div style={{display:activeTab==="strategy"?"block":"none"}}><VideoStrategy selectedAccounts={selectedAccounts} onClearAccounts={clearAccounts}/></div>
           <div style={{display:activeTab==="viral"?"block":"none"}}><ViralFormula/></div>
-          <div style={{display:activeTab==="competitors"?"block":"none"}}><Competitors selectedAccounts={selectedAccounts} onAddAccount={addAccount} onRemoveAccount={removeAccount} onGoToStrategy={()=>setActiveTab("strategy")} pendingScan={pendingScan} clearPendingScan={()=>setPendingScan(null)}/></div>
+          <div style={{display:activeTab==="explorer"?"block":"none"}}><Explorer requestedMode={explorerRequestedMode} clearRequestedMode={()=>setExplorerRequestedMode(null)} onGoToScan={(h, p)=> { setPendingScan({handle:h, platform:p}); setActiveTab("competitors"); }}/></div>
         </div>
         <p style={{textAlign:"center",color:"#1e3a5f",fontSize:10,marginTop:16,fontFamily:"monospace"}}>Powered by Gemini AI · Dati salvati in modo persistente</p>
       </div>
