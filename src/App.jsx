@@ -182,16 +182,16 @@ ${sources || "Nessun risultato."}`;
 
 // ─── STORAGE ──────────────────────────────────────────────────────
 async function loadCompetitors() {
-  try { const r=await window.storage.get("viralosc2"); return r?JSON.parse(r.value):[]; } catch { return []; }
+  try { const r=window.localStorage.getItem("viralosc2"); return r?JSON.parse(r):[]; } catch { return []; }
 }
 async function saveCompetitors(list) {
-  try { await window.storage.set("viralosc2",JSON.stringify(list)); } catch {}
+  try { window.localStorage.setItem("viralosc2",JSON.stringify(list)); } catch {}
 }
 async function loadSelectedAccounts() {
-  try { const r=await window.storage.get("viralos_selected"); return r?JSON.parse(r.value):[]; } catch { return []; }
+  try { const r=window.localStorage.getItem("viralos_selected"); return r?JSON.parse(r):[]; } catch { return []; }
 }
 async function saveSelectedAccounts(list) {
-  try { await window.storage.set("viralos_selected",JSON.stringify(list)); } catch {}
+  try { window.localStorage.setItem("viralos_selected",JSON.stringify(list)); } catch {}
 }
 
 // ─── SHARED UI ────────────────────────────────────────────────────
