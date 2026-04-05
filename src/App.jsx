@@ -28,6 +28,17 @@ async function callLLM({provider="gemini", prompt, system, useSearch=false, mode
       headers:{"Content-Type":"application/json"},
       body:JSON.stringify(body)
     });
+    
+    const contentType = r.headers.get("content-type") || "";
+    if(contentType.includes("text/html")) {
+      const htmlText = await r.text();
+      return { 
+        text: "", 
+        raw: htmlText, 
+        error: { message: `Il server (Netlify) ha restituito una pagina d'errore HTML invece dei dati dell'AI (HTTP Status: ${r.status}). Cause possibili: 1) Stai testando da localhost con 'npm run dev' invece di 'netlify dev' e le API backend non sono collegate. 2) C'è stato un crash/timeout interno di Google Gemini.` } 
+      };
+    }
+
     const data = await r.json();
     return { text: data.text || "", raw: data.raw || data, error: data.error || null };
   } catch (e) {
