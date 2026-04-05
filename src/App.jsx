@@ -334,7 +334,7 @@ function VideoStrategy({selectedAccounts=[], onClearAccounts}) {
   const run = async () => {
     if(!goal) return; setLoading(true); setResult(""); setRawText(""); setDebugInfo("");
     setDebugInfo("Chiamata AI per Genera Strategia da form manuale...");
-    const {text, raw, error} = await callAI(`Obiettivo: ${goal}\nTarget: ${audience||"n/a"}\nPiattaforma: ${platform}`,`Sei uno stratega di content marketing. Crea:\n1. 🎬 STRUTTURA VIDEO secondo per secondo\n2. 📋 PIANO EDITORIALE 30 GIORNI\n3. 🔁 FRAMEWORK RIPETIBILE\n4. 📈 KPI E METRICHE\n5. 🤝 CTA STRATEGY\nRispondi in italiano.`);
+    const {text, raw, error} = await callAI(`Obiettivo: ${goal}\nTarget: ${audience||"n/a"}\nPiattaforma: ${platform}`,`Sei uno stratega di content marketing esperto. \nFornisci una strategia MOLTO CONCISA e schematica per restare entro i limiti di tempo:\n1. 🎬 STRUTTURA VIDEO \n2. 📋 PIANO EDITORIALE 7 GIORNI (solo titoli)\n3. 🔁 FRAMEWORK RIPETIBILE\n4. 📈 KPI PRINCIPALI\n5. 🤝 CTA STRATEGY\nRispondi in italiano con un output compatto.`);
     if(error) setDebugInfo(prev => prev + `\n❌ ERRORE RESTITUITO: ${JSON.stringify(error)}`);
     else setDebugInfo(prev => prev + `\n✅ Risposta Ricevuta (${text.length} caratteri)`);
     setRawText(typeof raw === "string" ? raw : JSON.stringify(raw, null, 2) || "");
@@ -360,7 +360,7 @@ function VideoStrategy({selectedAccounts=[], onClearAccounts}) {
     setDebugInfo(`Chiamata AI per Genera Strategia dai Competitor...\nLunghezza dati input: ${finalPrompt.length} caratteri.\nCompetitor inseriti: ${selectedAccounts.length}\n\n--- INIZIO PAYLOAD INVIATO ALL'AI ---\n${finalPrompt}\n--- FINE PAYLOAD ---`);
     const {text, raw, error} = await callAI(
       finalPrompt,
-      `Sei uno stratega di content marketing. Leggi l'analisi profilo e i titoli dei video virali estratti da questi competitor e crea una strategia differenziante per superarli e per far raggiungere al cliente il suo OBIETTIVO specifico:\n1. 🔍 ANALISI COMUNE - pattern emersi dai dati forniti\n2. 🎯 GAP DI MERCATO - angoli o macro-temi ignorati\n3. 🎬 STRATEGIA DIFFERENZIANTE - come raggiungere l'obiettivo del cliente distinguendosi dai competitor\n4. 📋 PIANO EDITORIALE 30 GIORNI - format e titoli suggeriti\n5. 🔁 FRAMEWORK RIPETIBILE\n6. ⚡ 3 AZIONI IMMEDIATE\nRispondi in italiano in modo formattato e leggibile.`
+      `Sei uno stratega di content marketing. Leggi l'analisi profilo e i titoli dei video virali estratti da questi competitor e crea una strategia differenziante ESTREMAMENTE CONCISA E SCHEMATICA per far raggiungere al cliente il suo OBIETTIVO specifico:\n1. 🔍 ANALISI COMUNE (brevi pattern emersi dai dati)\n2. 🎯 GAP DI MERCATO (2 angoli ignorati)\n3. 🎬 STRATEGIA DIFFERENZIANTE \n4. 📋 PIANO EDITORIALE (idee per 7 giorni)\n5. 🔁 FRAMEWORK RIPETIBILE\n6. ⚡ 3 AZIONI IMMEDIATE\nRispondi in italiano in modo ultra-compatto per limiti di calcolo server.`
     );
     if(error) setDebugInfo(prev => prev + `\n\n❌ ERRORE RESTITUITO DAL SERVER LLM: ${JSON.stringify(error)}`);
     else setDebugInfo(prev => prev + `\n\n✅ Risposta Ricevuta con successo (${text.length} caratteri elaborati)`);
