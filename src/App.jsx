@@ -202,6 +202,19 @@ const ResultBox = ({text,color="#00ff9d"}) => !text?null:(
   </div>
 );
 
+function CollapsibleSection({title, color="#38bdf8", children, defaultOpen=true, icon=""}) {
+  const [open,setOpen]=useState(defaultOpen);
+  return (
+    <div style={{marginBottom:6,border:`1px solid ${color}22`,borderRadius:10,overflow:"hidden"}}>
+      <button onClick={()=>setOpen(!open)} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:`${color}0d`,border:"none",cursor:"pointer",color,fontFamily:"monospace",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:.8}}>
+        <span>{icon&&<span style={{marginRight:6}}>{icon}</span>}{title}</span>
+        <span style={{fontSize:10,opacity:.7}}>{open?"▲":"▼"}</span>
+      </button>
+      {open&&<div style={{padding:"12px 14px",background:"#04080f",fontSize:12,color:"#c8d8f0",lineHeight:1.75,whiteSpace:"pre-wrap"}}>{children}</div>}
+    </div>
+  );
+}
+
 function DebugPanel({info, rawText}) {
   const [open,setOpen]=useState(false);
   if(!info&&!rawText) return null;
@@ -531,6 +544,7 @@ function Competitors() {
   const [searchKeywords,setSearchKeywords]=useState("");
   const [scanning,setScanning]=useState(null); const [analyzing,setAnalyzing]=useState(null); const [discovering,setDiscovering]=useState(null); const [batchLoading,setBatchLoading]=useState(false);
   const [similarResult,setSimilarResult]=useState(""); const [similarComp,setSimilarComp]=useState(null);
+  const [similarItems,setSimilarItems]=useState([]);
   const [selectedComp,setSelectedComp]=useState(null);
   const [scanTab,setScanTab]=useState("video");
   const [profileTab,setProfileTab]=useState("overview");
@@ -774,25 +788,46 @@ function Competitors() {
   };
 
   const runSimilarSearch = async (comp, overrideKeywords=[]) => {
-    setDiscovering(comp.id); setSimilarResult(""); setSimilarComp(comp);
+    setDiscovering(comp.id); setSimilarResult(""); setSimilarComp(comp); setSimilarItems([]);
 
     const videoTitles = (comp.videos || []).filter(v=>v.title).map(v=>`- ${v.title}`).join("\n");
     const keywords = (overrideKeywords.length ? overrideKeywords.join(" ") : comp.analysisKeywords?.join(" ") || comp.searchKeywords || "").trim();
+    const profileOverview = comp.profileData?.overview || "";
 
-    const prompt = `Profilo analizzato: ${comp.handle}\nPiattaforma: ${comp.platform}${keywords ? `\nNicchia / parole chiave: ${keywords}` : ""}${videoTitles ? `\n\nVideo trovati sul profilo:\n${videoTitles}` : ""}`;
-    const system = `Sei un esperto di social media scouting. In base al profilo e ai video forniti, suggerisci 5-8 creator simili su ${comp.platform}.
+    // Step 1: LLM genera query brevi
+    const qPrompt = `Profilo: ${comp.handle}\nPiattaforma: ${comp.platform}${keywords?`\nNicchia: ${keywords}`:""}${profileOverview?`\nOverview: ${profileOverview}`:""}${videoTitles?`\nVideo:\n${videoTitles}`:""}`;
+    const qSystem = `Analizza questo creator e genera 4 query di ricerca BREVI (2-4 parole) per trovare creator simili su ${comp.platform}. Ogni query deve attaccare un angolo diverso: nicchia, audience, formato, stile. NON includere l'handle del profilo. Rispondi SOLO con JSON: {"queries":["query1","query2","query3","query4"]}`;
+    const { text: qText } = await callLLM({ provider: ACTIVE_PROVIDER, prompt: qPrompt, system: qSystem });
+    const { json: qJson } = extractJsonBlock(qText || "");
+    const searchQueries = (qJson?.queries || []).filter(Boolean).slice(0, 4);
 
-Per ogni creator indica:
-- Handle (@...)
-- Perché è simile (nicchia, stile, tono)
-- Cosa fa di diverso
-- Perché monitorarlo
-- URL profilo
+    if (!searchQueries.length) {
+      setSimilarResult("Impossibile generare query di ricerca.");
+      setDiscovering(null);
+      return;
+    }
 
-Rispondi in italiano. Puoi usare la tua conoscenza generale.`;
+    // Step 2: Tavily cerca per ogni query
+    const plat = comp.platform === "TikTok" ? "tiktok" : "instagram";
+    const allResults = [];
+    for (const q of searchQueries) {
+      const { results } = await tavilySearch({
+        query: `${q} ${plat}`,
+        maxResults: 5,
+        searchDepth: "basic",
+        includeDomains: comp.platform === "TikTok" ? ["tiktok.com"] : ["instagram.com"]
+      });
+      const seen = new Set(allResults.map(r=>r.url));
+      (results||[]).forEach(r => { if(r.url && !seen.has(r.url)) allResults.push({...r, _query: q}); });
+    }
 
-    const { text, error } = await callLLM({ provider: ACTIVE_PROVIDER, prompt, system });
-    setSimilarResult(error ? "Errore nella risposta LLM." : (text || "Nessun risultato."));
+    setSimilarItems(allResults.map(r=>({
+      title: r.title || r.url,
+      url: r.url || "",
+      desc: (r.content || r.snippet || "").slice(0, 300),
+      query: r._query || ""
+    })));
+    setSimilarResult(searchQueries.join(" · "));
     setDiscovering(null);
   };
 
@@ -942,44 +977,42 @@ Rispondi in italiano. Puoi usare la tua conoscenza generale.`;
           {!scanning&&scanTab==="profilo"&&(
             selectedComp?.profileData ? (
               <div>
-                <div style={{display:"flex",gap:6,marginBottom:12,overflowX:"auto"}}>
-                  {[
-                    {id:"overview",label:"Overview"},
-                    {id:"strategy",label:"Strategia"},
-                    {id:"patterns",label:"Pattern"},
-                    {id:"positioning",label:"Posizionamento"},
-                    {id:"ideas",label:"Idee"},
-                    {id:"weaknesses",label:"Debolezze"},
-                    {id:"keywords",label:"Keywords"}
-                  ].map(tab=>(
-                    <button key={tab.id} onClick={()=>setProfileTab(tab.id)} style={{flexShrink:0,padding:"7px 10px",borderRadius:7,border:profileTab===tab.id?`1px solid #a78bfa66`:"1px solid #0e2040",background:profileTab===tab.id?"#15122a":"#060d1a",color:profileTab===tab.id?"#a78bfa":"#4a6a8a",fontSize:10,fontWeight:600,cursor:"pointer",fontFamily:"monospace",textTransform:"uppercase"}}>
-                      {tab.label}
-                    </button>
-                  ))}
-                </div>
-                <div style={{background:"linear-gradient(135deg,#0a1628,#0d1f3c)",...glow("#a78bfa"),borderRadius:12,padding:14,fontSize:12,color:"#c8d8f0",lineHeight:1.7,whiteSpace:"pre-wrap"}}>
-                  {profileTab==="overview" && (selectedComp.profileData.overview || "N/D")}
-                  {profileTab==="strategy" && (selectedComp.profileData.strategy || "N/D")}
-                  {profileTab==="patterns" && (selectedComp.profileData.patterns || "N/D")}
-                  {profileTab==="positioning" && (selectedComp.profileData.positioning || "N/D")}
-                  {profileTab==="ideas" && (Array.isArray(selectedComp.profileData.stealIdeas) ? selectedComp.profileData.stealIdeas.map(i=>`- ${i}`).join("\n") : "N/D")}
-                  {profileTab==="weaknesses" && (selectedComp.profileData.weaknesses || "N/D")}
-                  {profileTab==="keywords" && (Array.isArray(selectedComp.profileData.keywords) ? selectedComp.profileData.keywords.map(k=>`- ${k}`).join("\n") : "N/D")}
-                </div>
+                {[
+                  {id:"overview",   label:"Overview",        icon:"🧠", val: selectedComp.profileData.overview},
+                  {id:"strategy",   label:"Strategia",       icon:"🎬", val: selectedComp.profileData.strategy},
+                  {id:"patterns",   label:"Pattern",         icon:"🔁", val: selectedComp.profileData.patterns},
+                  {id:"positioning",label:"Posizionamento",  icon:"🎯", val: selectedComp.profileData.positioning},
+                  {id:"ideas",      label:"Idee da rubare",  icon:"💡", val: Array.isArray(selectedComp.profileData.stealIdeas) ? selectedComp.profileData.stealIdeas.map(i=>`• ${i}`).join("\n") : selectedComp.profileData.stealIdeas},
+                  {id:"weaknesses", label:"Debolezze",       icon:"⚠️", val: selectedComp.profileData.weaknesses},
+                  {id:"keywords",   label:"Keywords",        icon:"🔑", val: Array.isArray(selectedComp.profileData.keywords) ? selectedComp.profileData.keywords.map(k=>`• ${k}`).join("\n") : selectedComp.profileData.keywords},
+                ].map(({id,label,icon,val})=>(
+                  <CollapsibleSection key={id} title={label} icon={icon} color="#a78bfa" defaultOpen={id==="overview"}>
+                    {val || "N/D"}
+                  </CollapsibleSection>
+                ))}
               </div>
             ) : (
-              profileResult ? (
-                <ResultBox text={profileResult} color="#a78bfa"/>
-              ) : (
-                <div style={{color:"#2a4a6a",fontFamily:"monospace",fontSize:12}}>Nessuna analisi profilo disponibile. Esegui prima la scansione.</div>
-              )
+              profileResult
+                ? <ResultBox text={profileResult} color="#a78bfa"/>
+                : <div style={{color:"#2a4a6a",fontFamily:"monospace",fontSize:12}}>Nessuna analisi profilo disponibile. Esegui prima la scansione.</div>
             )
           )}
 
           {!scanning&&scanTab==="competitor"&&(
-            similarResult
-              ? <ResultBox text={similarResult} color="#f59e0b"/>
-              : <div style={{color:"#2a4a6a",fontFamily:"monospace",fontSize:12}}>Nessun risultato. Clicca "Trova simili" per cercare competitor simili.</div>
+            similarItems.length>0 ? (
+              <div>
+                {similarResult&&<div style={{fontSize:10,color:"#4a6a8a",fontFamily:"monospace",marginBottom:10}}>Query usate: {similarResult}</div>}
+                {similarItems.map((it,i)=>(
+                  <CollapsibleSection key={`${it.url}-${i}`} title={it.title} icon="👤" color="#f59e0b" defaultOpen={false}>
+                    {it.url&&<a href={it.url} target="_blank" rel="noreferrer" style={{display:"block",color:"#38bdf8",fontFamily:"monospace",fontSize:11,marginBottom:8,wordBreak:"break-all",textDecoration:"none"}}>{it.url}</a>}
+                    {it.query&&<div style={{fontSize:10,color:"#4a6a8a",fontFamily:"monospace",marginBottom:6}}>Query: {it.query}</div>}
+                    {it.desc&&<div style={{color:"#8aa8c8",lineHeight:1.6}}>{it.desc}</div>}
+                  </CollapsibleSection>
+                ))}
+              </div>
+            ) : (
+              <div style={{color:"#2a4a6a",fontFamily:"monospace",fontSize:12}}>Nessun risultato. Clicca "Trova simili" per cercare competitor simili.</div>
+            )
           )}
 
           {/* Debug panel always shown after scan */}
