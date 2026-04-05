@@ -638,7 +638,8 @@ function Competitors({selectedAccounts=[], onAddAccount, onRemoveAccount, onGoTo
     setProfileResult(comp.profileAnalysis || "");
     setScanLog([]);
     setRawResponse("");
-    setSimilarItems([]);
+    setSimilarItems(comp.similarItems || []);
+    setSimilarResult(comp.similarResult || "");
   };
 
   // Multi-strategy scan
@@ -920,8 +921,16 @@ Rispondi SOLO con JSON: {"queries":["query1","query2","query3","query4"]}`;
       }
     }
 
-    setSimilarItems([...accountMap.values()]);
-    setSimilarResult(searchQueries.join(" · "));
+    const updatedSimilars = [...accountMap.values()];
+    const simResultText = searchQueries.join(" · ");
+
+    const currentList = await loadCompetitors();
+    const updated = currentList.map(c => c.id === comp.id ? { ...c, similarItems: updatedSimilars, similarResult: simResultText } : c);
+    await persist(updated);
+
+    setSelectedComp(prev => prev?.id === comp.id ? { ...prev, similarItems: updatedSimilars, similarResult: simResultText } : prev);
+    setSimilarItems(updatedSimilars);
+    setSimilarResult(simResultText);
     setDiscovering(null);
   };
 
