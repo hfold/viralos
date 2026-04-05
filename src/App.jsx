@@ -1076,7 +1076,7 @@ Rispondi SOLO con JSON: {"queries":["query1","query2","query3","query4"]}`;
                       <span style={{display:"flex",alignItems:"center",gap:8}}>
                         {it.handle}
                         {onAddAccount&&(
-                          <button onClick={e=>{e.stopPropagation(); isSelected?onRemoveAccount(it.handle):onAddAccount({handle:it.handle,platform:comp.platform,profileUrl:it.profileUrl||""});}} style={{background:isSelected?"#1a1035":"#0a1628",border:`1px solid ${isSelected?"#a78bfa66":"#1e3a5f"}`,color:isSelected?"#a78bfa":"#4a6a8a",borderRadius:5,padding:"2px 7px",cursor:"pointer",fontSize:10,fontFamily:"monospace",lineHeight:1.4}}>
+                          <button onClick={e=>{e.stopPropagation(); isSelected?onRemoveAccount(it.handle):onAddAccount({handle:it.handle,platform:selectedComp.platform,profileUrl:it.profileUrl||""});}} style={{background:isSelected?"#1a1035":"#0a1628",border:`1px solid ${isSelected?"#a78bfa66":"#1e3a5f"}`,color:isSelected?"#a78bfa":"#4a6a8a",borderRadius:5,padding:"2px 7px",cursor:"pointer",fontSize:10,fontFamily:"monospace",lineHeight:1.4}}>
                             {isSelected?"✓ Selezionato":"+ Seleziona"}
                           </button>
                         )}
