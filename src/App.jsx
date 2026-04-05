@@ -204,6 +204,12 @@ async function loadSelectedAccounts() {
 async function saveSelectedAccounts(list) {
   try { window.localStorage.setItem("viralos_selected",JSON.stringify(list)); } catch {}
 }
+async function loadSavedStrategies() {
+  try { const r=window.localStorage.getItem("viralos_strategies"); return r?JSON.parse(r):[]; } catch { return []; }
+}
+async function saveStrategies(list) {
+  try { window.localStorage.setItem("viralos_strategies",JSON.stringify(list)); } catch {}
+}
 
 // ─── SHARED UI ────────────────────────────────────────────────────
 const Spinner = ({color="#00ff9d",label="Analisi in corso…"}) => (
@@ -369,6 +375,11 @@ function VideoStrategy({selectedAccounts=[], onClearAccounts}) {
   const [goal,setGoal]=useState(""); const [audience,setAudience]=useState("");
   const [platform,setPlatform]=useState("Instagram Reels"); const [loading,setLoading]=useState(false); const [result,setResult]=useState(null);
   const [rawText, setRawText] = useState(""); const [debugInfo, setDebugInfo] = useState("");
+  const [history, setHistory] = useState([]);
+
+  useEffect(() => {
+    loadSavedStrategies().then(list => setHistory(list || []));
+  }, []);
   
   const generateStrategy = async () => {
     if(!selectedAccounts.length && !goal) return;
@@ -444,7 +455,25 @@ Rispondi in italiano. Usa SOLO i tag esatti.`;
 
     try {
       const parsed = parseStrategyOutput(text);
+
+      const strategyName = selectedAccounts.length > 0 
+        ? `[Competitor] ${selectedAccounts.map(a=>a.handle).join(', ')}`
+        : `[Manuale] ${goal.trim().split(' ').slice(0,3).join(' ')}...`;
+      
+      const newEntry = {
+        id: Date.now(),
+        date: new Date().toLocaleDateString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+        name: strategyName,
+        data: parsed
+      };
+
       setResult(parsed);
+      setHistory(prev => {
+        const next = [newEntry, ...prev].slice(0, 30);
+        saveStrategies(next);
+        return next;
+      });
+
       setDebugInfo(prev => prev + `\n\n✅ Estrazione Tag XML completata con successo (${text.length} char)`);
     } catch(err) {
       setDebugInfo(prev => prev + `\n\n❌ ERRORE PARSING TAG XML: ${err.message}\nTesto:\n${text}`);
@@ -478,6 +507,32 @@ Rispondi in italiano. Usa SOLO i tag esatti.`;
         {loading?"Costruzione…":selectedAccounts.length>0?"🎬 Genera strategia dai competitor":"🎬 Crea Strategia"}
       </Btn>
       {loading&&<Spinner color="#a78bfa"/>}
+
+      {history.length > 0 && !loading && (
+        <div style={{marginTop: 20, marginBottom: 12}}>
+          <div style={{fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>Strategie Salvate</div>
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {history.map(item => (
+              <div key={item.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:"#0a0816",border:"1px solid #a78bfa33",borderRadius:8}}>
+                <div onClick={() => setResult(item.data)} style={{cursor:"pointer",flex:1,display:"flex",alignItems:"center",gap:10}}>
+                  <span style={{fontSize:12,color:"#a78bfa",fontWeight:"bold"}}>{item.name}</span>
+                  <span style={{fontSize:10,color:"#4a6a8a"}}>{item.date}</span>
+                </div>
+                <button onClick={(e) => {
+                  e.stopPropagation();
+                  setHistory(prev => {
+                     const n = prev.filter(x => x.id !== item.id);
+                     saveStrategies(n);
+                     if (result && result === item.data) setResult(null); // Clear view if we delete active
+                     return n;
+                  });
+                }} style={{background:"none",border:"none",color:"#ff6b35",cursor:"pointer",fontSize:13,opacity:0.7}} title="Elimina Strategia">🗑️</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {result && typeof result === "object" && result._error && (
         <ResultBox text={`Errore:\n${result._error}`} color="#ff6b35"/>
       )}
