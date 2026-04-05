@@ -212,10 +212,10 @@ function CollapsibleSection({title, color="#38bdf8", children, defaultOpen=true,
   const [open,setOpen]=useState(defaultOpen);
   return (
     <div style={{marginBottom:6,border:`1px solid ${color}22`,borderRadius:10,overflow:"hidden"}}>
-      <button onClick={()=>setOpen(!open)} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:`${color}0d`,border:"none",cursor:"pointer",color,fontFamily:"monospace",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:.8}}>
+      <div onClick={()=>setOpen(!open)} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:`${color}0d`,cursor:"pointer",color,fontFamily:"monospace",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:.8,userSelect:"none"}}>
         <span style={{display:"flex",alignItems:"center",gap:6}}>{icon&&<span>{icon}</span>}{title}</span>
         <span style={{fontSize:10,opacity:.7,flexShrink:0,marginLeft:8}}>{open?"▲":"▼"}</span>
-      </button>
+      </div>
       {open&&<div style={{padding:"12px 14px",background:"#04080f",fontSize:12,color:"#c8d8f0",lineHeight:1.75,whiteSpace:"pre-wrap"}}>{children}</div>}
     </div>
   );
@@ -957,6 +957,21 @@ Rispondi SOLO con JSON: {"queries":["query1","query2","query3","query4"]}`;
         </div>
       )}
 
+      {selectedAccounts.length>0&&(
+        <div style={{marginBottom:14,border:"1px solid #a78bfa44",borderRadius:10,padding:10,background:"#0d0a1f"}}>
+          <div style={{fontSize:10,color:"#a78bfa",letterSpacing:2,textTransform:"uppercase",fontFamily:"monospace",marginBottom:8}}>Account selezionati ({selectedAccounts.length})</div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:10}}>
+            {selectedAccounts.map(a=>(
+              <span key={a.handle} style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:11,color:"#a78bfa",background:"#1a1035",border:"1px solid #a78bfa33",borderRadius:6,padding:"3px 8px",fontFamily:"monospace"}}>
+                {a.handle}
+                <button onClick={()=>onRemoveAccount(a.handle)} style={{background:"none",border:"none",color:"#4a3a6a",cursor:"pointer",fontSize:12,padding:0,lineHeight:1}}>✕</button>
+              </span>
+            ))}
+          </div>
+          <Btn onClick={onGoToStrategy} color="#a78bfa" small>🎬 Genera strategia dai competitor →</Btn>
+        </div>
+      )}
+
       {competitors.length===0?(
         <div style={{textAlign:"center",color:"#2a4a6a",padding:"28px 0",fontFamily:"monospace",fontSize:13,lineHeight:1.8}}>
           Nessun competitor ancora.<br/>Aggiungine uno sopra per iniziare.
@@ -966,20 +981,6 @@ Rispondi SOLO con JSON: {"queries":["query1","query2","query3","query4"]}`;
           {competitors.map(c=>(
             <CompetitorRow key={c.id} comp={c} onDelete={deleteCompetitor} onScan={scanContent} onProfile={analyzeProfile} onDiscover={discoverSimilar} scanning={scanning} analyzing={analyzing} discovering={discovering}/>
           ))}
-          {selectedAccounts.length>0&&(
-            <div style={{marginTop:10,border:"1px solid #a78bfa33",borderRadius:10,padding:10,background:"#0d0a1f"}}>
-              <div style={{fontSize:10,color:"#a78bfa",letterSpacing:2,textTransform:"uppercase",fontFamily:"monospace",marginBottom:8}}>Account selezionati ({selectedAccounts.length})</div>
-              <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:10}}>
-                {selectedAccounts.map(a=>(
-                  <span key={a.handle} style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:11,color:"#a78bfa",background:"#1a1035",border:"1px solid #a78bfa33",borderRadius:6,padding:"3px 8px",fontFamily:"monospace"}}>
-                    {a.handle}
-                    <button onClick={()=>onRemoveAccount(a.handle)} style={{background:"none",border:"none",color:"#4a3a6a",cursor:"pointer",fontSize:12,padding:0,lineHeight:1}}>✕</button>
-                  </span>
-                ))}
-              </div>
-              <Btn onClick={onGoToStrategy} color="#a78bfa" small>🎬 Genera strategia dai competitor →</Btn>
-            </div>
-          )}
         </>
       )}
 
