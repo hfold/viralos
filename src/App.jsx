@@ -326,9 +326,19 @@ function HookGenerator() {
 }
 
 // ─── STRATEGY ─────────────────────────────────────────────────────
+function extractJSON(text) {
+  try {
+    const match = text.match(/\{[\s\S]*\}/);
+    if (match) return JSON.parse(match[0]);
+    return JSON.parse(text);
+  } catch(e) {
+    throw new Error("Formato JSON invalido restituito dall'AI");
+  }
+}
+
 function VideoStrategy({selectedAccounts=[], onClearAccounts}) {
   const [goal,setGoal]=useState(""); const [audience,setAudience]=useState("");
-  const [platform,setPlatform]=useState("Instagram Reels"); const [loading,setLoading]=useState(false); const [result,setResult]=useState("");
+  const [platform,setPlatform]=useState("Instagram Reels"); const [loading,setLoading]=useState(false); const [result,setResult]=useState(null);
   const [rawText, setRawText] = useState(""); const [debugInfo, setDebugInfo] = useState("");
   
   const generateStrategy = async () => {
@@ -353,21 +363,55 @@ function VideoStrategy({selectedAccounts=[], onClearAccounts}) {
       const userAudience = audience ? `\nTARGET DEL CLIENTE: ${audience}` : "";
       const userPlatform = platform ? `\nPIATTAFORMA PRINCIPALE: ${platform}` : "";
       finalPrompt = basePrompt + userGoal + userAudience + userPlatform;
-      systemPrompt = `Sei uno stratega di content marketing. Leggi l'analisi profilo e i titoli dei video virali estratti da questi competitor e crea una strategia differenziante ESTREMAMENTE CONCISA E SCHEMATICA per far raggiungere al cliente il suo OBIETTIVO specifico:\n1. 🔍 ANALISI COMUNE (brevi pattern emersi dai dati)\n2. 🎯 GAP DI MERCATO (2 angoli ignorati)\n3. 🎬 STRATEGIA DIFFERENZIANTE \n4. 📋 PIANO EDITORIALE: scrivi 7 idee fornendo per ognuna un HOOK VIRALE (agressivo/curiosità) e una breve traccia visiva per i primi 3 secondi.\n5. 🔁 FRAMEWORK RIPETIBILE\n6. ⚡ 3 AZIONI IMMEDIATE\nRispondi in italiano in modo ultra-compatto per limiti di calcolo server.`;
+      systemPrompt = `Sei uno stratega di content marketing. Leggi l'analisi profilo e i titoli dei video virali estratti da questi competitor e crea una strategia differenziante ESTREMAMENTE CONCISA E SCHEMATICA per far raggiungere al cliente il suo OBIETTIVO specifico.
+Restituisci ESCLUSIVAMENTE un blocco JSON valido con questa esatta struttura e chiavi, senza codice markdown aggiuntivo e senza backticks o formattazione:
+{
+  "pianoEditoriale": "Idee per 7 giorni con HOOK VIRALE e traccia visiva (testo formattato in markdown o liste)",
+  "analisiComune": "Brevi pattern emersi dai dati (testo)",
+  "gapMercato": "2 angoli ignorati e idee (testo)",
+  "strategiaDifferenziante": "Strategia dettagliata (testo)",
+  "frameworkRipetibile": "Il tuo framework (testo)",
+  "azioniImmediate": "3 Azioni immediate (testo)"
+}
+Rispondi esclusivamente in italiano e assicurati che l'output totale sia decodificabile come JSON.parse().`;
       
       setDebugInfo(`Chiamata AI per Genera Strategia dai Competitor...\nLunghezza dati input: ${finalPrompt.length} caratteri.\nCompetitor inseriti: ${selectedAccounts.length}\n\n--- INIZIO PAYLOAD INVIATO ALL'AI ---\n${finalPrompt}\n--- FINE PAYLOAD ---`);
     } else {
       finalPrompt = `Obiettivo: ${goal}\nTarget: ${audience||"n/a"}\nPiattaforma: ${platform}`;
-      systemPrompt = `Sei uno stratega di content marketing esperto.\nFornisci una strategia MOLTO CONCISA e schematica per restare entro i limiti di tempo:\n1. 🎬 STRUTTURA VIDEO\n2. 📋 PIANO EDITORIALE 7 GIORNI: scrivi 7 HOOK VIRALI (aggressivi/curiosità) e una traccia visiva per i primi 3 secondi di ciascuno.\n3. 🔁 FRAMEWORK RIPETIBILE\n4. 📈 KPI PRINCIPALI\n5. 🤝 CTA STRATEGY\nRispondi in italiano con un output compatto.`;
+      systemPrompt = `Sei uno stratega di content marketing esperto.
+Restituisci ESCLUSIVAMENTE un blocco JSON valido con questa esatta struttura e chiavi, senza codice markdown aggiuntivo e senza backticks o formattazione:
+{
+  "pianoEditoriale": "7 giorni: 7 HOOK VIRALI aggressivi e traccia visiva (testo in markdown o liste)",
+  "strutturaVideo": "Struttura secondo per secondo (testo)",
+  "frameworkRipetibile": "Il framework ripetibile (testo)",
+  "kpiPrincipali": "Metriche chiave (testo)",
+  "ctaStrategy": "Strategie di call-to-action (testo)"
+}
+Rispondi in italiano e assicurati che sia testabile e decodificabile con JSON.parse().`;
       setDebugInfo("Chiamata AI per Genera Strategia da form manuale...");
     }
 
     const {text, raw, error} = await callAI(finalPrompt, systemPrompt);
 
-    if(error) setDebugInfo(prev => prev + `\n\n❌ ERRORE RESTITUITO: ${JSON.stringify(error)}`);
-    else setDebugInfo(prev => prev + `\n\n✅ Risposta Ricevuta con successo (${text.length} caratteri elaborati)`);
+    if (error) {
+      setDebugInfo(prev => prev + `\n\n❌ ERRORE API: ${JSON.stringify(error)}`);
+      setResult({ _error: error.message });
+      setRawText(typeof raw === "string" ? raw : JSON.stringify(raw, null, 2) || "");
+      setLoading(false);
+      return;
+    }
+
+    try {
+      const parsed = extractJSON(text);
+      setResult(parsed);
+      setDebugInfo(prev => prev + `\n\n✅ JSON Parsing completato con successo (${text.length} char)`);
+    } catch(err) {
+      setDebugInfo(prev => prev + `\n\n❌ ERRORE JSON PARSE: ${err.message}\nTesto:\n${text}`);
+      setResult({ _error: `Impossibile analizzare i dati dell'AI come JSON.\nProva a generarlo di nuovo.\nTesto originale:\n${text.slice(0,500)}...` });
+    }
+
     setRawText(typeof raw === "string" ? raw : JSON.stringify(raw, null, 2) || "");
-    setResult(text); setLoading(false);
+    setLoading(false);
   };
   return (
     <div>
@@ -391,7 +435,25 @@ function VideoStrategy({selectedAccounts=[], onClearAccounts}) {
         {loading?"Costruzione…":selectedAccounts.length>0?"🎬 Genera strategia dai competitor":"🎬 Crea Strategia"}
       </Btn>
       {loading&&<Spinner color="#a78bfa"/>}
-      <ResultBox text={result} color="#a78bfa"/>
+      {result && typeof result === "object" && result._error && (
+        <ResultBox text={`Errore:\n${result._error}`} color="#ff6b35"/>
+      )}
+      {result && typeof result === "object" && !result._error && (
+        <div style={{marginTop: 18}}>
+          {result.pianoEditoriale && <CollapsibleSection title="📋 PIANO EDITORIALE 7 GIORNI" color="#a78bfa" defaultOpen={true}>{result.pianoEditoriale}</CollapsibleSection>}
+          {result.strutturaVideo && <CollapsibleSection title="🎬 STRUTTURA VIDEO" color="#a78bfa" defaultOpen={false}>{result.strutturaVideo}</CollapsibleSection>}
+          {result.analisiComune && <CollapsibleSection title="🔍 ANALISI COMUNE" color="#a78bfa" defaultOpen={false}>{result.analisiComune}</CollapsibleSection>}
+          {result.gapMercato && <CollapsibleSection title="🎯 GAP DI MERCATO" color="#a78bfa" defaultOpen={false}>{result.gapMercato}</CollapsibleSection>}
+          {result.strategiaDifferenziante && <CollapsibleSection title="🎬 STRATEGIA DIFFERENZIANTE" color="#a78bfa" defaultOpen={false}>{result.strategiaDifferenziante}</CollapsibleSection>}
+          {result.frameworkRipetibile && <CollapsibleSection title="🔁 FRAMEWORK RIPETIBILE" color="#a78bfa" defaultOpen={false}>{result.frameworkRipetibile}</CollapsibleSection>}
+          {result.kpiPrincipali && <CollapsibleSection title="📈 KPI PRINCIPALI" color="#a78bfa" defaultOpen={false}>{result.kpiPrincipali}</CollapsibleSection>}
+          {result.ctaStrategy && <CollapsibleSection title="🤝 CTA STRATEGY" color="#a78bfa" defaultOpen={false}>{result.ctaStrategy}</CollapsibleSection>}
+          {result.azioniImmediate && <CollapsibleSection title="⚡ 3 AZIONI IMMEDIATE" color="#a78bfa" defaultOpen={false}>{result.azioniImmediate}</CollapsibleSection>}
+        </div>
+      )}
+      {result && typeof result === "string" && (
+        <ResultBox text={result} color="#a78bfa"/>
+      )}
       <DebugPanel info={debugInfo} rawText={rawText} />
     </div>
   );
