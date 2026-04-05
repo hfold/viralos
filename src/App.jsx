@@ -796,12 +796,22 @@ function Competitors() {
 
     // Step 1: LLM genera query brevi con termini professionali/di nicchia
     const qPrompt = `Profilo: ${comp.handle}\nPiattaforma: ${comp.platform}${keywords?`\nNicchia: ${keywords}`:""}${profileOverview?`\nOverview: ${profileOverview}`:""}${videoTitles?`\nVideo:\n${videoTitles}`:""}`;
-    const qSystem = `Analizza questo creator e genera 4 query di ricerca BREVI (2-4 parole) per trovare account simili su ${comp.platform}.
-Regole:
-- Usa termini professionali/di ruolo che descrivono il tipo di creator (es. "nutrizionista", "personal trainer", "chef", "psicologo") — NON argomenti generici come "ricette" o "dieta"
-- Ogni query deve attaccare un angolo diverso: ruolo professionale, audience target, stile comunicativo, sotto-nicchia
-- NON includere l'handle del profilo di partenza
-- NON includere il nome della piattaforma nelle query (viene aggiunto automaticamente)
+    const qSystem = `Analizza questo creator e genera 4 query per trovare account simili. Ogni query deve essere il NOME DI UN TIPO DI PERSONA o PROFESSIONE, massimo 3 parole.
+
+ESEMPI CORRETTI (nomi di figure professionali o creator):
+- "nutrizionista mamme"
+- "dietista sportivo"
+- "coach alimentazione"
+- "medico nutrizione"
+
+ESEMPI SBAGLIATI (non usare mai):
+- "ricette nutrizione consigli" ❌ (argomenti, non persone)
+- "dieta sana instagram" ❌ (contiene piattaforma)
+- "reels fitness" ❌ (contiene formato)
+
+Le 4 query devono descrivere 4 tipi diversi di creator/professionisti simili al profilo analizzato.
+NON includere l'handle del profilo di partenza.
+NON includere il nome della piattaforma.
 Rispondi SOLO con JSON: {"queries":["query1","query2","query3","query4"]}`;
     const { text: qText } = await callLLM({ provider: ACTIVE_PROVIDER, prompt: qPrompt, system: qSystem });
     const { json: qJson } = extractJsonBlock(qText || "");
