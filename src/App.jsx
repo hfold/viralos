@@ -378,7 +378,7 @@ function buildSearchQueries(handle, platform, keywords="") {
     { label:"@handle post", q:`"${h}" tiktok${k}` },
   ];
   return [
-    { label:"reel", q:`"${h}" instagram reel${k}` },
+    { label:"reel", q:`"${h}" instagram${k}` },
     { label:"post", q:`"${h}" instagram post${k}` },
     { label:"handle creator", q:`"${h}" instagram creator${k}` },
     { label:"handle profilo", q:`"${h}" instagram${k}` },
@@ -392,7 +392,7 @@ function buildSimilarQueries(platform, keywords="") {
     { label:"web 2", q:`tiktok profili${k}`, useSite:false },
   ];
   return [
-    { label:"web", q:`instagram reel creator${k}`, useSite:false },
+    { label:"web", q:`instagram creator${k}`, useSite:false },
     { label:"web 2", q:`instagram profili${k}`, useSite:false },
   ];
 }
