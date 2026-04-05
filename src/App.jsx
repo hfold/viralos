@@ -304,7 +304,7 @@ function Explorer({onGoToScan}) {
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [creators, setCreators] = useState([]);
-  const [ideasResult, setIdeasResult] = useState("");
+  const [ideasResult, setIdeasResult] = useState([]); // Ora è array
   const [searched, setSearched] = useState(false);
 
   const handleSearch = async () => {
@@ -335,16 +335,35 @@ function Explorer({onGoToScan}) {
       });
       setCreators(arr);
     } else {
-      const prompt = `Trova trend, format video e idee geniali per: ${query}
-Piattaforma: ${platform}
-Restituisci la tua analisi usando un formato Markdown ricco (Usa ampiamente titoli ##, ###, liste puntate e numerate).`;
+      // 1. LLM Query Translation
+      const qSys = `Converti l'intento dell'utente in massimo 2 query di ricerca web super sintetiche. Rispondi SOLO con JSON: {"queries":["query1","query2"]}. Le query devono avere max 3 parole. NON includere il nome della piattaforma.`;
+      const qPrompt = `Testo utente: ${query}`;
+      const {text: qText} = await callLLM({ provider: ACTIVE_PROVIDER, prompt: qPrompt, system: qSys });
+      const {json: qJson} = extractJsonBlock(qText);
+      const searchQueries = (qJson?.queries || []).slice(0, 2);
       
-      const {text} = await callSearchLLM({
-        query: `trend virali format video ${query} ${platform}`,
-        prompt,
-        system: "Sei un content analyst esperto di algoritmi social e format virali."
-      });
-      setIdeasResult(text);
+      if(!searchQueries.length) { setIdeasResult([]); setLoading(false); return; }
+
+      // 2. Web Scraping
+      const domain = platform === "TikTok" ? "tiktok.com" : "instagram.com";
+      const platWord = platform === "TikTok" ? "tiktok" : "instagram";
+      let allResults = [];
+      for(const q of searchQueries) {
+         const {results} = await tavilySearch({ query: `${q} ${platWord}`, maxResults: 3, searchDepth: "basic", includeDomains:[domain] });
+         allResults = [...allResults, ...(results||[])];
+      }
+      const sourcesContext = buildSourcesFromResults(allResults);
+
+      // 3. Json Array Extraction
+      const exSystem = `Sei un content analyst esperto di social media. Leggi le FONTI in tempo reale e delinea i format/trend attuali scoperti per questo settore.
+Rispondi RIGOROSAMENTE con questo JSON esatto (zero markdown fuori dal JSON):
+{"formats": [ {"title": "Nome corto del Format/Trend", "description": "Spiegazione dettagliata dell'idea e di come realizzarla o aggregarla"} ]}`;
+      const exPrompt = `Idea Iniziale Utente: ${query}\nPiattaforma: ${platform}\n\nFONTI IN TEMPO REALE:\n${sourcesContext || "Nessuna fonte trovata, genera idee probabili basate sull'idea iniziale."}`;
+
+      const {text: exText} = await callLLM({ provider: ACTIVE_PROVIDER, prompt: exPrompt, system: exSystem});
+      const {json: exJson} = extractJsonBlock(exText);
+      
+      setIdeasResult((exJson?.formats || []).filter(f=>f.title));
     }
     setLoading(false);
   };
@@ -388,11 +407,18 @@ Restituisci la tua analisi usando un formato Markdown ricco (Usa ampiamente tito
         </div>
       )}
 
-      {!loading && searched && mode === "ideas" && ideasResult && (
+      {!loading && searched && mode === "ideas" && (
         <div style={{marginTop: 20}}>
-          <div style={{padding:"14px",background:"#04080f",color:"#a3b8cc",lineHeight:1.75,border:"1px solid #1e3a5f",borderRadius:10}}>
-             {renderRichText(ideasResult)}
-          </div>
+          <div style={{fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase",marginBottom:10,fontFamily:"monospace"}}>Format e Idee Trovate</div>
+          {Array.isArray(ideasResult) && ideasResult.length > 0 ? (
+            ideasResult.map((f, i) => (
+             <CollapsibleSection key={i} title={f.title} icon="💡" color="#00ff9d" defaultOpen={true}>
+               {f.description}
+             </CollapsibleSection>
+            ))
+          ) : (
+            <ResultBox text="Nessun format generato. Prova termini più chiari." color="#ff6b35"/>
+          )}
         </div>
       )}
     </div>
