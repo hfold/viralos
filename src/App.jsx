@@ -219,6 +219,17 @@ const ResultBox = ({text,color="#00ff9d"}) => !text?null:(
   </div>
 );
 
+function renderRichText(text) {
+  if (typeof text !== "string") return text;
+  const html = text
+    .replace(/\*\*(.*?)\*\*/g, '<strong style="color: #e2e8f0; font-weight: 800;">$1</strong>')
+    .replace(/(Giorno \d+:?)/gi, '<div style="background: linear-gradient(90deg, #a78bfa44, transparent); padding: 8px 12px; margin-top: 18px; margin-bottom: 6px; border-radius: 4px; border-left: 4px solid #a78bfa; font-weight: 800; color: #fff; letter-spacing: 1px; text-transform: uppercase; font-size: 13px;">$1</div>')
+    .replace(/(HOOK VIRALE(:\s*)?)/gi, '<span style="color: #f59e0b; background: #f59e0b22; padding: 3px 8px; border-radius: 4px; font-weight: 800; font-size: 11px; letter-spacing: 0.5px; border: 1px solid #f59e0b44; display: inline-block; margin-top: 8px; margin-bottom: 4px;">HOOK VIRALE:</span> ')
+    .replace(/(TRACCIA VISIVA(:\s*)?)/gi, '<span style="color: #00ff9d; background: #00ff9d22; padding: 3px 8px; border-radius: 4px; font-weight: 800; font-size: 11px; letter-spacing: 0.5px; border: 1px solid #00ff9d44; display: inline-block; margin-top: 8px; margin-bottom: 4px;">TRACCIA VISIVA:</span> ');
+  
+  return <div dangerouslySetInnerHTML={{__html: html}} />;
+}
+
 function CollapsibleSection({title, color="#38bdf8", children, defaultOpen=true, icon=""}) {
   const [open,setOpen]=useState(defaultOpen);
   return (
@@ -227,7 +238,7 @@ function CollapsibleSection({title, color="#38bdf8", children, defaultOpen=true,
         <span style={{display:"flex",alignItems:"center",gap:6}}>{icon&&<span>{icon}</span>}{title}</span>
         <span style={{fontSize:10,opacity:.7,flexShrink:0,marginLeft:8}}>{open?"▲":"▼"}</span>
       </div>
-      {open&&<div style={{padding:"12px 14px",background:"#04080f",fontSize:12,color:"#c8d8f0",lineHeight:1.75,whiteSpace:"pre-wrap"}}>{children}</div>}
+      {open&&<div style={{padding:"12px 14px",background:"#04080f",fontSize:13,color:"#a3b8cc",lineHeight:1.75,whiteSpace:"pre-wrap"}}>{renderRichText(children)}</div>}
     </div>
   );
 }
