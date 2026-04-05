@@ -326,14 +326,28 @@ function HookGenerator() {
 }
 
 // ─── STRATEGY ─────────────────────────────────────────────────────
-function extractJSON(text) {
-  try {
-    const match = text.match(/\{[\s\S]*\}/);
-    if (match) return JSON.parse(match[0]);
-    return JSON.parse(text);
-  } catch(e) {
-    throw new Error("Formato JSON invalido restituito dall'AI");
+function parseStrategyOutput(text) {
+  const parseTag = (tag) => {
+    const match = text.match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`, 'i'));
+    return match ? match[1].trim() : "";
+  };
+
+  const parsed = {
+    pianoEditoriale: parseTag("pianoEditoriale"),
+    analisiComune: parseTag("analisiComune"),
+    gapMercato: parseTag("gapMercato"),
+    strategiaDifferenziante: parseTag("strategiaDifferenziante"),
+    frameworkRipetibile: parseTag("frameworkRipetibile"),
+    azioniImmediate: parseTag("azioniImmediate"),
+    strutturaVideo: parseTag("strutturaVideo"),
+    kpiPrincipali: parseTag("kpiPrincipali"),
+    ctaStrategy: parseTag("ctaStrategy")
+  };
+
+  if (!Object.values(parsed).some(val => val.length > 0)) {
+     throw new Error("Nessun tag riconosciuto. Formattazione invalidata dall'AI.");
   }
+  return parsed;
 }
 
 function VideoStrategy({selectedAccounts=[], onClearAccounts}) {
@@ -364,30 +378,28 @@ function VideoStrategy({selectedAccounts=[], onClearAccounts}) {
       const userPlatform = platform ? `\nPIATTAFORMA PRINCIPALE: ${platform}` : "";
       finalPrompt = basePrompt + userGoal + userAudience + userPlatform;
       systemPrompt = `Sei uno stratega di content marketing. Leggi l'analisi profilo e i titoli dei video virali estratti da questi competitor e crea una strategia differenziante ESTREMAMENTE CONCISA E SCHEMATICA per far raggiungere al cliente il suo OBIETTIVO specifico.
-Restituisci ESCLUSIVAMENTE un blocco JSON valido con questa esatta struttura e chiavi, senza codice markdown aggiuntivo e senza backticks o formattazione:
-{
-  "pianoEditoriale": "Idee per 7 giorni con HOOK VIRALE e traccia visiva (testo formattato in markdown o liste)",
-  "analisiComune": "Brevi pattern emersi dai dati (testo)",
-  "gapMercato": "2 angoli ignorati e idee (testo)",
-  "strategiaDifferenziante": "Strategia dettagliata (testo)",
-  "frameworkRipetibile": "Il tuo framework (testo)",
-  "azioniImmediate": "3 Azioni immediate (testo)"
-}
-Rispondi esclusivamente in italiano e assicurati che l'output totale sia decodificabile come JSON.parse().`;
+Restituisci la tua strategia racchiudendo ogni sezione ESATTAMENTE nei seguenti tag XML (non usare JSON):
+<pianoEditoriale>Idee per 7 giorni con HOOK VIRALE e traccia visiva (testo formattato in markdown o liste)</pianoEditoriale>
+<analisiComune>Brevi pattern emersi dai dati (testo)</analisiComune>
+<gapMercato>2 angoli ignorati e idee (testo)</gapMercato>
+<strategiaDifferenziante>Strategia dettagliata (testo)</strategiaDifferenziante>
+<frameworkRipetibile>Il tuo framework (testo)</frameworkRipetibile>
+<azioniImmediate>3 Azioni immediate (testo)</azioniImmediate>
+
+Rispondi esclusivamente in italiano. Ometti backticks, usa SOLO i tag.`;
       
       setDebugInfo(`Chiamata AI per Genera Strategia dai Competitor...\nLunghezza dati input: ${finalPrompt.length} caratteri.\nCompetitor inseriti: ${selectedAccounts.length}\n\n--- INIZIO PAYLOAD INVIATO ALL'AI ---\n${finalPrompt}\n--- FINE PAYLOAD ---`);
     } else {
       finalPrompt = `Obiettivo: ${goal}\nTarget: ${audience||"n/a"}\nPiattaforma: ${platform}`;
       systemPrompt = `Sei uno stratega di content marketing esperto.
-Restituisci ESCLUSIVAMENTE un blocco JSON valido con questa esatta struttura e chiavi, senza codice markdown aggiuntivo e senza backticks o formattazione:
-{
-  "pianoEditoriale": "7 giorni: 7 HOOK VIRALI aggressivi e traccia visiva (testo in markdown o liste)",
-  "strutturaVideo": "Struttura secondo per secondo (testo)",
-  "frameworkRipetibile": "Il framework ripetibile (testo)",
-  "kpiPrincipali": "Metriche chiave (testo)",
-  "ctaStrategy": "Strategie di call-to-action (testo)"
-}
-Rispondi in italiano e assicurati che sia testabile e decodificabile con JSON.parse().`;
+Restituisci la tua strategia racchiudendo ogni sezione ESATTAMENTE nei seguenti tag XML (non usare JSON):
+<pianoEditoriale>7 giorni: 7 HOOK VIRALI aggressivi e traccia visiva (testo in markdown o liste)</pianoEditoriale>
+<strutturaVideo>Struttura secondo per secondo (testo)</strutturaVideo>
+<frameworkRipetibile>Il framework ripetibile (testo)</frameworkRipetibile>
+<kpiPrincipali>Metriche chiave (testo)</kpiPrincipali>
+<ctaStrategy>Strategie di call-to-action (testo)</ctaStrategy>
+
+Rispondi in italiano. Usa SOLO i tag esatti.`;
       setDebugInfo("Chiamata AI per Genera Strategia da form manuale...");
     }
 
@@ -402,12 +414,12 @@ Rispondi in italiano e assicurati che sia testabile e decodificabile con JSON.pa
     }
 
     try {
-      const parsed = extractJSON(text);
+      const parsed = parseStrategyOutput(text);
       setResult(parsed);
-      setDebugInfo(prev => prev + `\n\n✅ JSON Parsing completato con successo (${text.length} char)`);
+      setDebugInfo(prev => prev + `\n\n✅ Estrazione Tag XML completata con successo (${text.length} char)`);
     } catch(err) {
-      setDebugInfo(prev => prev + `\n\n❌ ERRORE JSON PARSE: ${err.message}\nTesto:\n${text}`);
-      setResult({ _error: `Impossibile analizzare i dati dell'AI come JSON.\nProva a generarlo di nuovo.\nTesto originale:\n${text.slice(0,500)}...` });
+      setDebugInfo(prev => prev + `\n\n❌ ERRORE PARSING TAG XML: ${err.message}\nTesto:\n${text}`);
+      setResult({ _error: `Impossibile analizzare i tag testuali dall'AI.\nProva a generarlo di nuovo.\nTesto originale:\n${text.slice(0,500)}...` });
     }
 
     setRawText(typeof raw === "string" ? raw : JSON.stringify(raw, null, 2) || "");
