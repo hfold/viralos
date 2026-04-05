@@ -373,15 +373,15 @@ function buildSearchQueries(handle, platform, keywords="") {
   const h = handle.replace("@", "");
   const k = keywords ? ` ${keywords}` : "";
   if(platform==="TikTok") return [
-    { label:"profilo + video", q:`site:tiktok.com/@${h} video tiktok${k}` },
-    { label:"profilo diretto", q:`site:tiktok.com/@${h} tiktok${k}` },
-    { label:"@handle", q:`"@${h}" tiktok video${k}` },
+    { label:"@handle video", q:`"@${h}" tiktok video${k}` },
+    { label:"@handle creator", q:`"${h}" tiktok creator${k}` },
+    { label:"@handle post", q:`"${h}" tiktok${k}` },
   ];
   return [
-    { label:"profilo diretto", q:`site:instagram.com/${h}/ instagram${k}` },
-    { label:"post del profilo", q:`site:instagram.com/${h}/p/ instagram${k}` },
     { label:"reel", q:`"${h}" instagram reel${k}` },
     { label:"post", q:`"${h}" instagram post${k}` },
+    { label:"handle creator", q:`"${h}" instagram creator${k}` },
+    { label:"handle profilo", q:`"${h}" instagram${k}` },
   ];
 }
 
@@ -741,9 +741,10 @@ function Competitors() {
     }).join("\n");
     const kw = comp.searchKeywords ? `Parole chiave: ${comp.searchKeywords}` : "Parole chiave: (nessuna)";
 
+    const h0 = comp.handle.replace(/^@/,"");
     const accountQuery = comp.platform==="TikTok"
-      ? `site:tiktok.com/@${comp.handle.replace(/^@/,"")}`
-      : `site:instagram.com/${comp.handle.replace(/^@/,"")}/`;
+      ? `"@${h0}" tiktok creator`
+      : `"${h0}" instagram profilo`;
     const accountSearch = await tavilySearch({
       query: accountQuery,
       maxResults: 6,
@@ -838,9 +839,10 @@ function Competitors() {
     )).slice(0, 8);
     const profileSourcesByHandle = {};
     for(const h of handles){
+      const hh = h.replace(/^@/,"");
       const q = comp.platform==="TikTok"
-        ? `site:tiktok.com/@${h.replace(/^@/,"")}`
-        : `site:instagram.com/${h.replace(/^@/,"")}/`;
+        ? `"@${hh}" tiktok creator`
+        : `"${hh}" instagram profilo`;
       const search = await tavilySearch({
         query: q,
         maxResults: 5,
