@@ -413,6 +413,8 @@ Rispondi in italiano e assicurati che sia testabile e decodificabile con JSON.pa
     setRawText(typeof raw === "string" ? raw : JSON.stringify(raw, null, 2) || "");
     setLoading(false);
   };
+  const safeStr = (val) => typeof val === "string" ? val : JSON.stringify(val, null, 2);
+
   return (
     <div>
       {selectedAccounts.length>0&&(
@@ -440,15 +442,15 @@ Rispondi in italiano e assicurati che sia testabile e decodificabile con JSON.pa
       )}
       {result && typeof result === "object" && !result._error && (
         <div style={{marginTop: 18}}>
-          {result.pianoEditoriale && <CollapsibleSection title="📋 PIANO EDITORIALE 7 GIORNI" color="#a78bfa" defaultOpen={true}>{result.pianoEditoriale}</CollapsibleSection>}
-          {result.strutturaVideo && <CollapsibleSection title="🎬 STRUTTURA VIDEO" color="#a78bfa" defaultOpen={false}>{result.strutturaVideo}</CollapsibleSection>}
-          {result.analisiComune && <CollapsibleSection title="🔍 ANALISI COMUNE" color="#a78bfa" defaultOpen={false}>{result.analisiComune}</CollapsibleSection>}
-          {result.gapMercato && <CollapsibleSection title="🎯 GAP DI MERCATO" color="#a78bfa" defaultOpen={false}>{result.gapMercato}</CollapsibleSection>}
-          {result.strategiaDifferenziante && <CollapsibleSection title="🎬 STRATEGIA DIFFERENZIANTE" color="#a78bfa" defaultOpen={false}>{result.strategiaDifferenziante}</CollapsibleSection>}
-          {result.frameworkRipetibile && <CollapsibleSection title="🔁 FRAMEWORK RIPETIBILE" color="#a78bfa" defaultOpen={false}>{result.frameworkRipetibile}</CollapsibleSection>}
-          {result.kpiPrincipali && <CollapsibleSection title="📈 KPI PRINCIPALI" color="#a78bfa" defaultOpen={false}>{result.kpiPrincipali}</CollapsibleSection>}
-          {result.ctaStrategy && <CollapsibleSection title="🤝 CTA STRATEGY" color="#a78bfa" defaultOpen={false}>{result.ctaStrategy}</CollapsibleSection>}
-          {result.azioniImmediate && <CollapsibleSection title="⚡ 3 AZIONI IMMEDIATE" color="#a78bfa" defaultOpen={false}>{result.azioniImmediate}</CollapsibleSection>}
+          {result.pianoEditoriale && <CollapsibleSection title="📋 PIANO EDITORIALE 7 GIORNI" color="#a78bfa" defaultOpen={true}>{safeStr(result.pianoEditoriale)}</CollapsibleSection>}
+          {result.strutturaVideo && <CollapsibleSection title="🎬 STRUTTURA VIDEO" color="#a78bfa" defaultOpen={false}>{safeStr(result.strutturaVideo)}</CollapsibleSection>}
+          {result.analisiComune && <CollapsibleSection title="🔍 ANALISI COMUNE" color="#a78bfa" defaultOpen={false}>{safeStr(result.analisiComune)}</CollapsibleSection>}
+          {result.gapMercato && <CollapsibleSection title="🎯 GAP DI MERCATO" color="#a78bfa" defaultOpen={false}>{safeStr(result.gapMercato)}</CollapsibleSection>}
+          {result.strategiaDifferenziante && <CollapsibleSection title="🎬 STRATEGIA DIFFERENZIANTE" color="#a78bfa" defaultOpen={false}>{safeStr(result.strategiaDifferenziante)}</CollapsibleSection>}
+          {result.frameworkRipetibile && <CollapsibleSection title="🔁 FRAMEWORK RIPETIBILE" color="#a78bfa" defaultOpen={false}>{safeStr(result.frameworkRipetibile)}</CollapsibleSection>}
+          {result.kpiPrincipali && <CollapsibleSection title="📈 KPI PRINCIPALI" color="#a78bfa" defaultOpen={false}>{safeStr(result.kpiPrincipali)}</CollapsibleSection>}
+          {result.ctaStrategy && <CollapsibleSection title="🤝 CTA STRATEGY" color="#a78bfa" defaultOpen={false}>{safeStr(result.ctaStrategy)}</CollapsibleSection>}
+          {result.azioniImmediate && <CollapsibleSection title="⚡ 3 AZIONI IMMEDIATE" color="#a78bfa" defaultOpen={false}>{safeStr(result.azioniImmediate)}</CollapsibleSection>}
         </div>
       )}
       {result && typeof result === "string" && (
