@@ -543,7 +543,7 @@ Regole:
 - keywords: 6-12 parole chiave brevi, senza @, senza hashtag, 1-3 parole ciascuna`;
 
 
-function CompetitorRow({comp,onDelete,onScan,onProfile,onDiscover,scanning,analyzing,discovering, isSelected, onToggleStrategy}) {
+function CompetitorRow({comp,onDelete,onScan,onView,onProfile,onDiscover,scanning,analyzing,discovering, isSelected, onToggleStrategy}) {
   const icon=comp.platform==="Instagram"?"📸":"🎵";
   return (
     <div style={{background:"#070f1e",border:"1px solid #1e3a5f",borderRadius:10,padding:14,marginBottom:10}}>
@@ -564,9 +564,12 @@ function CompetitorRow({comp,onDelete,onScan,onProfile,onDiscover,scanning,analy
           {scanning===comp.id?"🔍 Ricerca…":"🔍 Scansiona"}
         </Btn>
         {comp.lastScan && (
-          <Btn onClick={()=>onToggleStrategy(comp)} color="#a78bfa" small>
-            {isSelected ? "✅ In Strategia" : "➕ Aggiungi a Strategia"}
-          </Btn>
+          <>
+            <Btn onClick={()=>onView(comp)} color="#00ff9d" small>📖 Apri</Btn>
+            <Btn onClick={()=>onToggleStrategy(comp)} color="#a78bfa" small>
+              {isSelected ? "✅ In Strategia" : "➕ Aggiungi a Strategia"}
+            </Btn>
+          </>
         )}
       </div>
     </div>
@@ -621,6 +624,17 @@ function Competitors({selectedAccounts=[], onAddAccount, onRemoveAccount, onGoTo
       await persist([...competitors, targetComp]);
     }
     scanContent(targetComp);
+  };
+
+  const handleView = (comp) => {
+    setSelectedComp(comp);
+    setScanTab("video");
+    setProfileTab("overview");
+    setProfileTitle(`📊 ${comp.handle}`);
+    setProfileResult(comp.profileAnalysis || "");
+    setScanLog([]);
+    setRawResponse("");
+    setSimilarItems([]);
   };
 
   // Multi-strategy scan
@@ -995,7 +1009,7 @@ Rispondi SOLO con JSON: {"queries":["query1","query2","query3","query4"]}`;
         <>
           {competitors.map(c=>{
             const isSelected = selectedAccounts.some(a=>a.handle===c.handle);
-            return <CompetitorRow key={c.id} comp={c} onDelete={deleteCompetitor} onScan={scanContent} onProfile={analyzeProfile} onDiscover={discoverSimilar} scanning={scanning} analyzing={analyzing} discovering={discovering} isSelected={isSelected} onToggleStrategy={comp => isSelected ? onRemoveAccount(comp.handle) : onAddAccount({handle:comp.handle, platform:comp.platform, profileUrl: buildProfileUrlFromHandle(comp.handle, comp.platform)})} />;
+            return <CompetitorRow key={c.id} comp={c} onDelete={deleteCompetitor} onScan={scanContent} onView={handleView} onProfile={analyzeProfile} onDiscover={discoverSimilar} scanning={scanning} analyzing={analyzing} discovering={discovering} isSelected={isSelected} onToggleStrategy={comp => isSelected ? onRemoveAccount(comp.handle) : onAddAccount({handle:comp.handle, platform:comp.platform, profileUrl: buildProfileUrlFromHandle(comp.handle, comp.platform)})} />;
           })}
         </>
       )}
@@ -1166,11 +1180,11 @@ export default function App() {
             <span style={{fontSize:18}}>{TABS.find(t=>t.id===activeTab)?.icon}</span>
             <h2 style={{margin:0,fontSize:17,color:activeColor,fontFamily:"monospace",letterSpacing:.5}}>{TABS.find(t=>t.id===activeTab)?.label}</h2>
           </div>
-          {activeTab==="trend"&&<TrendScanner/>}
-          {activeTab==="hook"&&<HookGenerator/>}
-          {activeTab==="strategy"&&<VideoStrategy selectedAccounts={selectedAccounts} onClearAccounts={clearAccounts}/>}
-          {activeTab==="viral"&&<ViralFormula/>}
-          {activeTab==="competitors"&&<Competitors selectedAccounts={selectedAccounts} onAddAccount={addAccount} onRemoveAccount={removeAccount} onGoToStrategy={()=>setActiveTab("strategy")}/>}
+          <div style={{display:activeTab==="trend"?"block":"none"}}><TrendScanner/></div>
+          <div style={{display:activeTab==="hook"?"block":"none"}}><HookGenerator/></div>
+          <div style={{display:activeTab==="strategy"?"block":"none"}}><VideoStrategy selectedAccounts={selectedAccounts} onClearAccounts={clearAccounts}/></div>
+          <div style={{display:activeTab==="viral"?"block":"none"}}><ViralFormula/></div>
+          <div style={{display:activeTab==="competitors"?"block":"none"}}><Competitors selectedAccounts={selectedAccounts} onAddAccount={addAccount} onRemoveAccount={removeAccount} onGoToStrategy={()=>setActiveTab("strategy")}/></div>
         </div>
         <p style={{textAlign:"center",color:"#1e3a5f",fontSize:10,marginTop:16,fontFamily:"monospace"}}>Powered by Claude AI · Dati salvati in modo persistente</p>
       </div>
