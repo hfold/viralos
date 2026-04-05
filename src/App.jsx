@@ -794,9 +794,15 @@ function Competitors() {
     const keywords = (overrideKeywords.length ? overrideKeywords.join(" ") : comp.analysisKeywords?.join(" ") || comp.searchKeywords || "").trim();
     const profileOverview = comp.profileData?.overview || "";
 
-    // Step 1: LLM genera query brevi
+    // Step 1: LLM genera query brevi con termini professionali/di nicchia
     const qPrompt = `Profilo: ${comp.handle}\nPiattaforma: ${comp.platform}${keywords?`\nNicchia: ${keywords}`:""}${profileOverview?`\nOverview: ${profileOverview}`:""}${videoTitles?`\nVideo:\n${videoTitles}`:""}`;
-    const qSystem = `Analizza questo creator e genera 4 query di ricerca BREVI (2-4 parole) per trovare creator simili su ${comp.platform}. Ogni query deve attaccare un angolo diverso: nicchia, audience, formato, stile. NON includere l'handle del profilo. Rispondi SOLO con JSON: {"queries":["query1","query2","query3","query4"]}`;
+    const qSystem = `Analizza questo creator e genera 4 query di ricerca BREVI (2-4 parole) per trovare account simili su ${comp.platform}.
+Regole:
+- Usa termini professionali/di ruolo che descrivono il tipo di creator (es. "nutrizionista", "personal trainer", "chef", "psicologo") — NON argomenti generici come "ricette" o "dieta"
+- Ogni query deve attaccare un angolo diverso: ruolo professionale, audience target, stile comunicativo, sotto-nicchia
+- NON includere l'handle del profilo di partenza
+- NON includere il nome della piattaforma nelle query (viene aggiunto automaticamente)
+Rispondi SOLO con JSON: {"queries":["query1","query2","query3","query4"]}`;
     const { text: qText } = await callLLM({ provider: ACTIVE_PROVIDER, prompt: qPrompt, system: qSystem });
     const { json: qJson } = extractJsonBlock(qText || "");
     const searchQueries = (qJson?.queries || []).filter(Boolean).slice(0, 4);
@@ -807,26 +813,38 @@ function Competitors() {
       return;
     }
 
-    // Step 2: Tavily cerca per ogni query
+    // Step 2: Tavily cerca per ogni query — includi sempre "profilo" per preferire pagine account
     const plat = comp.platform === "TikTok" ? "tiktok" : "instagram";
-    const allResults = [];
+    const rawResults = [];
     for (const q of searchQueries) {
       const { results } = await tavilySearch({
-        query: `${q} ${plat}`,
-        maxResults: 5,
+        query: `${q} ${plat} profilo`,
+        maxResults: 6,
         searchDepth: "basic",
         includeDomains: comp.platform === "TikTok" ? ["tiktok.com"] : ["instagram.com"]
       });
-      const seen = new Set(allResults.map(r=>r.url));
-      (results||[]).forEach(r => { if(r.url && !seen.has(r.url)) allResults.push({...r, _query: q}); });
+      (results||[]).forEach(r => { if(r.url) rawResults.push({...r, _query: q}); });
     }
 
-    setSimilarItems(allResults.map(r=>({
-      title: r.title || r.url,
-      url: r.url || "",
-      desc: (r.content || r.snippet || "").slice(0, 300),
-      query: r._query || ""
-    })));
+    // Step 3: estrai handle, deduplicA per account, costruisci URL profilo
+    const accountMap = new Map();
+    for (const r of rawResults) {
+      const handle = extractHandleFromUrl(r.url, comp.platform);
+      if (!handle) continue;
+      const lh = handle.toLowerCase();
+      if (lh === comp.handle.replace(/^@/,"").toLowerCase()) continue; // escludi il profilo di partenza
+      if (!accountMap.has(lh)) {
+        const profileUrl = buildProfileUrlFromHandle(handle, comp.platform);
+        accountMap.set(lh, {
+          handle,
+          profileUrl,
+          desc: (r.content || r.snippet || "").slice(0, 300),
+          query: r._query || ""
+        });
+      }
+    }
+
+    setSimilarItems([...accountMap.values()]);
     setSimilarResult(searchQueries.join(" · "));
     setDiscovering(null);
   };
@@ -1003,10 +1021,10 @@ function Competitors() {
               <div>
                 {similarResult&&<div style={{fontSize:10,color:"#4a6a8a",fontFamily:"monospace",marginBottom:10}}>Query usate: {similarResult}</div>}
                 {similarItems.map((it,i)=>(
-                  <CollapsibleSection key={`${it.url}-${i}`} title={it.title} icon="👤" color="#f59e0b" defaultOpen={false}>
-                    {it.url&&<a href={it.url} target="_blank" rel="noreferrer" style={{display:"block",color:"#38bdf8",fontFamily:"monospace",fontSize:11,marginBottom:8,wordBreak:"break-all",textDecoration:"none"}}>{it.url}</a>}
+                  <CollapsibleSection key={`${it.handle}-${i}`} title={it.handle} icon="👤" color="#f59e0b" defaultOpen={false}>
+                    {it.profileUrl&&<a href={it.profileUrl} target="_blank" rel="noreferrer" style={{display:"inline-block",color:"#00ff9d",fontFamily:"monospace",fontSize:12,marginBottom:8,textDecoration:"none",fontWeight:700}}>{it.profileUrl}</a>}
                     {it.query&&<div style={{fontSize:10,color:"#4a6a8a",fontFamily:"monospace",marginBottom:6}}>Query: {it.query}</div>}
-                    {it.desc&&<div style={{color:"#8aa8c8",lineHeight:1.6}}>{it.desc}</div>}
+                    {it.desc&&<div style={{color:"#8aa8c8",lineHeight:1.6,fontSize:11}}>{it.desc}</div>}
                   </CollapsibleSection>
                 ))}
               </div>
