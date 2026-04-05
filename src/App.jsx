@@ -222,9 +222,12 @@ const ResultBox = ({text,color="#00ff9d"}) => !text?null:(
 function renderRichText(text) {
   if (typeof text !== "string") return text;
   const html = text
+    .replace(/(?:^|\n)##\s+(.*?)(?=\n|$)/g, '<div style="color: #38bdf8; font-weight: 800; font-size: 14.5px; margin-top: 18px; margin-bottom: 8px; letter-spacing: 0.5px; border-bottom: 1px solid #38bdf833; padding-bottom: 4px;">$1</div>')
+    .replace(/(?:^|\n)###\s+(.*?)(?=\n|$)/g, '<div style="color: #a78bfa; font-weight: 800; font-size: 13.5px; margin-top: 14px; margin-bottom: 6px; letter-spacing: 0.5px;">$1</div>')
     .replace(/\*?\*?(Giorno \d+|Lunedì|Martedì|Mercoledì|Giovedì|Venerdì|Sabato|Domenica)\*?\*?:?/gi, '<div style="background: linear-gradient(90deg, #a78bfa44, transparent); padding: 8px 12px; margin-top: 18px; margin-bottom: 6px; border-radius: 4px; border-left: 4px solid #a78bfa; font-weight: 800; color: #fff; letter-spacing: 1px; text-transform: uppercase; font-size: 13px;">$1</div>')
     .replace(/\*?\*?HOOK VIRALE\*?\*?:?/gi, '<span style="color: #f59e0b; background: #f59e0b22; padding: 3px 8px; border-radius: 4px; font-weight: 800; font-size: 11px; letter-spacing: 0.5px; border: 1px solid #f59e0b44; display: inline-block; margin-top: 8px; margin-bottom: 4px;">HOOK VIRALE:</span> ')
     .replace(/\*?\*?TRACCIA VISIVA\*?\*?:?/gi, '<span style="color: #00ff9d; background: #00ff9d22; padding: 3px 8px; border-radius: 4px; font-weight: 800; font-size: 11px; letter-spacing: 0.5px; border: 1px solid #00ff9d44; display: inline-block; margin-top: 8px; margin-bottom: 4px;">TRACCIA VISIVA:</span> ')
+    .replace(/(?:^|\n)(1\.|2\.|3\.|4\.|5\.|6\.|7\.|8\.|9\.)/g, '<br/><span style="color: #f59e0b; font-weight: 800; font-size: 13px; margin-right: 4px;">$1</span>')
     .replace(/\*\*(.*?)\*\*/g, '<strong style="color: #e2e8f0; font-weight: 800;">$1</strong>')
     .replace(/^\*\s+/gm, '• ');
   
@@ -390,7 +393,9 @@ function VideoStrategy({selectedAccounts=[], onClearAccounts}) {
       const userPlatform = platform ? `\nPIATTAFORMA PRINCIPALE: ${platform}` : "";
       finalPrompt = basePrompt + userGoal + userAudience + userPlatform;
       systemPrompt = `Sei uno stratega di content marketing. Leggi l'analisi profilo e i titoli dei video virali estratti da questi competitor e crea una strategia differenziante ESTREMAMENTE CONCISA E SCHEMATICA per far raggiungere al cliente il suo OBIETTIVO specifico.
-Restituisci la tua strategia racchiudendo ogni sezione ESATTAMENTE nei seguenti tag XML (non usare JSON):
+Restituisci la tua strategia racchiudendo ogni sezione ESATTAMENTE nei seguenti tag XML (non usare JSON).
+ATTENZIONE: Usa estensivamente titoli markdown (## Titolo, ### Sottotitolo), elenchi numerati (1. 2. 3.) e grassetti per dare struttura grafica vibrante a tutte le sezioni.
+
 <pianoEditoriale>
 Usa rigorosamente e ripetutamente questo blocco testuale per tutti e 7 i giorni:
 GIORNO X:
@@ -409,7 +414,9 @@ Rispondi esclusivamente in italiano. Ometti backticks, usa SOLO i tag.`;
     } else {
       finalPrompt = `Obiettivo: ${goal}\nTarget: ${audience||"n/a"}\nPiattaforma: ${platform}`;
       systemPrompt = `Sei uno stratega di content marketing esperto.
-Restituisci la tua strategia racchiudendo ogni sezione ESATTAMENTE nei seguenti tag XML (non usare JSON):
+Restituisci la tua strategia racchiudendo ogni sezione ESATTAMENTE nei seguenti tag XML (non usare JSON).
+ATTENZIONE: Usa estensivamente titoli markdown (## Titolo, ### Sottotitolo), elenchi numerati (1. 2. 3.) e grassetti per dare struttura grafica vibrante a tutte le sezioni.
+
 <pianoEditoriale>
 Usa rigorosamente e ripetutamente questo blocco testuale per tutti e 7 i giorni:
 GIORNO X:
