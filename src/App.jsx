@@ -1104,6 +1104,42 @@ ${sources}`;
             )
           )}
 
+          {!scanning&&scanTab==="simili"&&(
+            (similarVideos.length>0) ? (
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:10}}>
+                {similarVideos.map((it,i)=>(
+                  <div key={`${it.url}-${i}`} style={{background:"#070f1e",border:"1px solid #1e3a5f",borderRadius:10,padding:12}}>
+                    <div style={{fontSize:12,color:"#38bdf8",fontFamily:"monospace",fontWeight:700,marginBottom:6}}>
+                      {it.title}
+                    </div>
+                    {it.url && (
+                      <a href={it.url} target="_blank" rel="noreferrer" style={{fontSize:11,color:"#7a9bc0",fontFamily:"monospace",textDecoration:"none",display:"block",marginBottom:6,wordBreak:"break-all"}}>
+                        {it.url}
+                      </a>
+                    )}
+                    {it.handle && (
+                      <div style={{fontSize:11,color:"#4a6a8a",fontFamily:"monospace",marginBottom:6}}>
+                        Profilo: {it.handle}
+                      </div>
+                    )}
+                    {it.profileUrl && (
+                      <a href={it.profileUrl} target="_blank" rel="noreferrer" style={{fontSize:11,color:"#00ff9d",fontFamily:"monospace",textDecoration:"none",display:"block",marginBottom:6,wordBreak:"break-all"}}>
+                        {it.profileUrl}
+                      </a>
+                    )}
+                    {it.desc && (
+                      <div style={{fontSize:11,color:"#4a6a8a",fontFamily:"monospace",lineHeight:1.5}}>
+                        {it.desc}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{color:"#2a4a6a",fontFamily:"monospace",fontSize:12}}>Nessun video simile trovato. Esegui prima la scansione o amplia le parole chiave.</div>
+            )
+          )}
+
           {!scanning&&scanTab==="competitor"&&(
             (similarItems.length>0) ? (
               <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:10}}>
@@ -1196,38 +1232,3 @@ export default function App() {
     </div>
   );
 }
-          {!scanning&&scanTab==="simili"&&(
-            (similarVideos.length>0) ? (
-              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:10}}>
-                {similarVideos.map((it,i)=>(
-                  <div key={`${it.url}-${i}`} style={{background:"#070f1e",border:"1px solid #1e3a5f",borderRadius:10,padding:12}}>
-                    <div style={{fontSize:12,color:"#38bdf8",fontFamily:"monospace",fontWeight:700,marginBottom:6}}>
-                      {it.title}
-                    </div>
-                    {it.url && (
-                      <a href={it.url} target="_blank" rel="noreferrer" style={{fontSize:11,color:"#7a9bc0",fontFamily:"monospace",textDecoration:"none",display:"block",marginBottom:6,wordBreak:"break-all"}}>
-                        {it.url}
-                      </a>
-                    )}
-                    {it.handle && (
-                      <div style={{fontSize:11,color:"#4a6a8a",fontFamily:"monospace",marginBottom:6}}>
-                        Profilo: {it.handle}
-                      </div>
-                    )}
-                    {it.profileUrl && (
-                      <a href={it.profileUrl} target="_blank" rel="noreferrer" style={{fontSize:11,color:"#00ff9d",fontFamily:"monospace",textDecoration:"none",display:"block",marginBottom:6,wordBreak:"break-all"}}>
-                        {it.profileUrl}
-                      </a>
-                    )}
-                    {it.desc && (
-                      <div style={{fontSize:11,color:"#4a6a8a",fontFamily:"monospace",lineHeight:1.5}}>
-                        {it.desc}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{color:"#2a4a6a",fontFamily:"monospace",fontSize:12}}>Nessun video simile trovato. Esegui prima la scansione o amplia le parole chiave.</div>
-            )
-          )}
