@@ -1110,26 +1110,19 @@ Rispondi SOLO con JSON: {"queries":["query1","query2","query3","query4"]}`;
 export default function App() {
   const [activeTab,setActiveTab]=useState("competitors");
   const [selectedAccounts,setSelectedAccounts]=useState([]);
+  const [accountsLoaded,setAccountsLoaded]=useState(false);
   const activeColor=TAB_COLORS[activeTab];
 
-  useEffect(()=>{ loadSelectedAccounts().then(setSelectedAccounts); },[]);
+  useEffect(()=>{ loadSelectedAccounts().then(list=>{ setSelectedAccounts(list); setAccountsLoaded(true); }); },[]);
+  useEffect(()=>{ if(accountsLoaded) saveSelectedAccounts(selectedAccounts); },[selectedAccounts,accountsLoaded]);
 
-  const addAccount = async (account) => {
-    setSelectedAccounts(prev=>{
-      if(prev.some(a=>a.handle===account.handle)) return prev;
-      const next=[...prev,account];
-      saveSelectedAccounts(next);
-      return next;
-    });
+  const addAccount = (account) => {
+    setSelectedAccounts(prev=> prev.some(a=>a.handle===account.handle) ? prev : [...prev,account]);
   };
-  const removeAccount = async (handle) => {
-    setSelectedAccounts(prev=>{
-      const next=prev.filter(a=>a.handle!==handle);
-      saveSelectedAccounts(next);
-      return next;
-    });
+  const removeAccount = (handle) => {
+    setSelectedAccounts(prev=> prev.filter(a=>a.handle!==handle));
   };
-  const clearAccounts = async () => { setSelectedAccounts([]); await saveSelectedAccounts([]); };
+  const clearAccounts = () => { setSelectedAccounts([]); };
 
   return (
     <div style={{minHeight:"100vh",background:"#04080f",fontFamily:"'Georgia','Times New Roman',serif",paddingBottom:60,backgroundImage:`radial-gradient(ellipse at 20% 50%,#00ff9d08,transparent 50%),radial-gradient(ellipse at 80% 20%,#a78bfa08,transparent 50%)`}}>
