@@ -210,6 +210,18 @@ async function loadSavedStrategies() {
 async function saveStrategies(list) {
   try { window.localStorage.setItem("viralos_strategies",JSON.stringify(list)); } catch {}
 }
+async function loadExplorerCreators() {
+  try { const r=window.localStorage.getItem("viralos_exp_cr"); return r?JSON.parse(r):[]; } catch { return []; }
+}
+async function saveExplorerCreators(list) {
+  try { window.localStorage.setItem("viralos_exp_cr",JSON.stringify(list)); } catch {}
+}
+async function loadExplorerIdeas() {
+  try { const r=window.localStorage.getItem("viralos_exp_id"); return r?JSON.parse(r):[]; } catch { return []; }
+}
+async function saveExplorerIdeas(list) {
+  try { window.localStorage.setItem("viralos_exp_id",JSON.stringify(list)); } catch {}
+}
 
 // ─── SHARED UI ────────────────────────────────────────────────────
 const Spinner = ({color="#00ff9d",label="Analisi in corso…"}) => (
@@ -306,6 +318,13 @@ function Explorer({onGoToScan}) {
   const [creators, setCreators] = useState([]);
   const [ideasResult, setIdeasResult] = useState([]); // Ora è array
   const [searched, setSearched] = useState(false);
+  const [historyCreators, setHistoryCreators] = useState([]);
+  const [historyIdeas, setHistoryIdeas] = useState([]);
+
+  useEffect(() => {
+    loadExplorerCreators().then(setHistoryCreators);
+    loadExplorerIdeas().then(setHistoryIdeas);
+  }, []);
 
   const handleSearch = async () => {
     if(!query.trim()) return;
@@ -334,6 +353,13 @@ function Explorer({onGoToScan}) {
         }
       });
       setCreators(arr);
+      if(arr.length > 0) {
+        setHistoryCreators(prev => {
+          const n = [{ id: Date.now().toString(), name: `[C] ${query} (${platform})`, date: new Date().toLocaleDateString("it-IT"), data: arr }, ...prev];
+          saveExplorerCreators(n);
+          return n;
+        });
+      }
     } else {
       // 1. LLM Query Translation
       const qSys = `Converti l'intento dell'utente in massimo 2 query di ricerca web super sintetiche. Rispondi SOLO con JSON: {"queries":["query1","query2"]}. Le query devono avere max 3 parole. NON includere il nome della piattaforma.`;
@@ -355,15 +381,24 @@ function Explorer({onGoToScan}) {
       const sourcesContext = buildSourcesFromResults(allResults);
 
       // 3. Json Array Extraction
-      const exSystem = `Sei un content analyst esperto di social media. Leggi le FONTI in tempo reale e delinea i format/trend attuali scoperti per questo settore. Usa il markdown nella descrizione (grassetti, maiuscole, liste puntate).
+      const exSystem = `Sei un content analyst esperto di social media. Leggi le FONTI in tempo reale e delinea i format/trend attuali scoperti per questo settore. Usa il markdown nella descrizione. Organizza il contenuto a PUNTI ELENCO, mettendo la parola chiave in MAIUSCOLO E GRASSETTO (es. **FOCUS:** desc..., **TARGET:** desc..., **ESEMPI:** desc...).
 Rispondi RIGOROSAMENTE con questo JSON esatto (zero markdown fuori dal JSON):
-{"formats": [ {"title": "NOME FORMAT IN MAIUSCOLO", "overview": "Breve overview in grassetto dell'idea", "description": "Spiegazione dettagliata con liste puntate in markdown", "links":["url reale del video o profilo preso dalle fonti", "..."]} ]}`;
+{"formats": [ {"title": "NOME FORMAT IN MAIUSCOLO", "description": "Spiegazione dettagliata a punti chiave in markdown", "links":["url reale del video o profilo preso dalle fonti", "..."]} ]}`;
       const exPrompt = `Idea Iniziale Utente: ${query}\nPiattaforma: ${platform}\n\nFONTI IN TEMPO REALE:\n${sourcesContext || "Nessuna fonte trovata, genera idee probabili basate sull'idea iniziale."}`;
 
       const {text: exText} = await callLLM({ provider: ACTIVE_PROVIDER, prompt: exPrompt, system: exSystem});
       const {json: exJson} = extractJsonBlock(exText);
       
-      setIdeasResult((exJson?.formats || []).filter(f=>f.title));
+      const resData = (exJson?.formats || []).filter(f=>f.title);
+      setIdeasResult(resData);
+      
+      if(resData.length > 0) {
+        setHistoryIdeas(prev => {
+          const n = [{ id: Date.now().toString(), name: `[I] ${query} (${platform})`, date: new Date().toLocaleDateString("it-IT"), data: resData }, ...prev];
+          saveExplorerIdeas(n);
+          return n;
+        });
+      }
     }
     setLoading(false);
   };
@@ -413,7 +448,6 @@ Rispondi RIGOROSAMENTE con questo JSON esatto (zero markdown fuori dal JSON):
           {Array.isArray(ideasResult) && ideasResult.length > 0 ? (
             ideasResult.map((f, i) => (
              <CollapsibleSection key={i} title={f.title} icon="💡" color="#00ff9d" defaultOpen={false}>
-               {f.overview && <div style={{fontWeight:600, color:"#e8f4ff", marginBottom:10}}>{f.overview}</div>}
                <div style={{color:"#a3b8cc", lineHeight:1.7}}>
                   {renderRichText(f.description)}
                </div>
@@ -432,10 +466,59 @@ Rispondi RIGOROSAMENTE con questo JSON esatto (zero markdown fuori dal JSON):
           )}
         </div>
       )}
+
+      {/* HISTORIES */}
+      {!loading && mode === "creator" && historyCreators.length > 0 && (
+        <div style={{marginTop: 30, paddingTop: 20, borderTop: "1px dashed #1e3a5f"}}>
+          <div style={{fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>Archivio Ricerche Creator</div>
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {historyCreators.map(item => (
+              <div key={item.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:"#0a0816",border:"1px solid #00ff9d33",borderRadius:8}}>
+                <div onClick={() => { setCreators(item.data); setSearched(true); }} style={{cursor:"pointer",flex:1,display:"flex",alignItems:"center",gap:10}}>
+                  <span style={{fontSize:12,color:"#00ff9d",fontWeight:"bold"}}>{item.name}</span>
+                  <span style={{fontSize:10,color:"#7a9bc0"}}>{item.date}</span>
+                </div>
+                <button onClick={(e) => {
+                  e.stopPropagation();
+                  setHistoryCreators(prev => {
+                     const n = prev.filter(x => x.id !== item.id);
+                     saveExplorerCreators(n);
+                     return n;
+                  });
+                }} style={{background:"none",border:"none",color:"#ff6b35",cursor:"pointer",fontSize:13,padding:"4px 8px"}} title="Elimina Ricerca">🗑️</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {!loading && mode === "ideas" && historyIdeas.length > 0 && (
+        <div style={{marginTop: 30, paddingTop: 20, borderTop: "1px dashed #1e3a5f"}}>
+          <div style={{fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>Archivio Ricerche Idee</div>
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {historyIdeas.map(item => (
+              <div key={item.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:"#0a0816",border:"1px solid #00ff9d33",borderRadius:8}}>
+                <div onClick={() => { setIdeasResult(item.data); setSearched(true); }} style={{cursor:"pointer",flex:1,display:"flex",alignItems:"center",gap:10}}>
+                  <span style={{fontSize:12,color:"#00ff9d",fontWeight:"bold"}}>{item.name}</span>
+                  <span style={{fontSize:10,color:"#7a9bc0"}}>{item.date}</span>
+                </div>
+                <button onClick={(e) => {
+                  e.stopPropagation();
+                  setHistoryIdeas(prev => {
+                     const n = prev.filter(x => x.id !== item.id);
+                     saveExplorerIdeas(n);
+                     return n;
+                  });
+                }} style={{background:"none",border:"none",color:"#ff6b35",cursor:"pointer",fontSize:13,padding:"4px 8px"}} title="Elimina Ricerca">🗑️</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
-
 
 // ─── HOOK ─────────────────────────────────────────────────────────
 function HookGenerator() {
