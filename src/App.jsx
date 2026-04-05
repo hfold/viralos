@@ -37,7 +37,7 @@ async function callLLM({provider="gemini", prompt, system, useSearch=false, mode
 
 const ACTIVE_PROVIDER = "gemini";
 
-async function callClaude(prompt, system, useSearch=false) {
+async function callAI(prompt, system, useSearch=false) {
   return callLLM({ provider: ACTIVE_PROVIDER, prompt, system, useSearch });
 }
 
@@ -278,7 +278,7 @@ function TrendScanner() {
       "3. TARGET PSICOLOGICO",
       "Specifica che sono stime AI. Rispondi in italiano."
     ].join("\n");
-    const {text} = await callClaude(`Nicchia: ${niche}`, sys);
+    const {text} = await callAI(`Nicchia: ${niche}`, sys);
     setResult(text); setLoading(false);
   };
   return (
@@ -299,7 +299,7 @@ function HookGenerator() {
   const [hookType,setHookType]=useState("Curiosità"); const [loading,setLoading]=useState(false); const [result,setResult]=useState("");
   const run = async () => {
     if(!topic) return; setLoading(true); setResult("");
-    const {text} = await callClaude(`Argomento: ${topic}\nPiattaforma: ${platform}\nTipo: ${hookType}`,`Sei un esperto di copywriting virale. Genera:\n1. 🎣 10 HOOK che fermano lo scroll\n2. 🗣️ SCRIPT APERTURA per i 3 migliori (15 sec)\n3. 🎭 VARIANTI TONO\n4. 📱 TESTO SOVRIMPRESSO\nRispondi in italiano.`);
+    const {text} = await callAI(`Argomento: ${topic}\nPiattaforma: ${platform}\nTipo: ${hookType}`,`Sei un esperto di copywriting virale. Genera:\n1. 🎣 10 HOOK che fermano lo scroll\n2. 🗣️ SCRIPT APERTURA per i 3 migliori (15 sec)\n3. 🎭 VARIANTI TONO\n4. 📱 TESTO SOVRIMPRESSO\nRispondi in italiano.`);
     setResult(text); setLoading(false);
   };
   return (
@@ -320,15 +320,23 @@ function VideoStrategy({selectedAccounts=[], onClearAccounts}) {
   const [platform,setPlatform]=useState("Instagram Reels"); const [loading,setLoading]=useState(false); const [result,setResult]=useState("");
   const run = async () => {
     if(!goal) return; setLoading(true); setResult("");
-    const {text} = await callClaude(`Obiettivo: ${goal}\nTarget: ${audience||"n/a"}\nPiattaforma: ${platform}`,`Sei uno stratega di content marketing. Crea:\n1. 🎬 STRUTTURA VIDEO secondo per secondo\n2. 📋 PIANO EDITORIALE 30 GIORNI\n3. 🔁 FRAMEWORK RIPETIBILE\n4. 📈 KPI E METRICHE\n5. 🤝 CTA STRATEGY\nRispondi in italiano.`);
+    const {text} = await callAI(`Obiettivo: ${goal}\nTarget: ${audience||"n/a"}\nPiattaforma: ${platform}`,`Sei uno stratega di content marketing. Crea:\n1. 🎬 STRUTTURA VIDEO secondo per secondo\n2. 📋 PIANO EDITORIALE 30 GIORNI\n3. 🔁 FRAMEWORK RIPETIBILE\n4. 📈 KPI E METRICHE\n5. 🤝 CTA STRATEGY\nRispondi in italiano.`);
     setResult(text); setLoading(false);
   };
   const runFromCompetitors = async () => {
     if(!selectedAccounts.length) return; setLoading(true); setResult("");
-    const accountList = selectedAccounts.map(a=>`- ${a.handle} (${a.platform})${a.profileUrl?` → ${a.profileUrl}`:""}`).join("\n");
-    const {text} = await callClaude(
-      `Account competitor selezionati:\n${accountList}`,
-      `Sei uno stratega di content marketing. Analizza questi account competitor e crea una strategia differenziante per superarli:\n1. 🔍 ANALISI COMUNE - cosa hanno in comune questi competitor\n2. 🎯 GAP DI MERCATO - cosa non stanno coprendo\n3. 🎬 STRATEGIA DIFFERENZIANTE - come posizionarti in modo unico\n4. 📋 PIANO EDITORIALE 30 GIORNI basato sui gap trovati\n5. 🔁 FRAMEWORK RIPETIBILE\n6. ⚡ 3 AZIONI IMMEDIATE\nRispondi in italiano.`
+    const accountList = selectedAccounts.map(a=>{
+      let out = `- ${a.handle} (${a.platform})${a.profileUrl?` → ${a.profileUrl}`:""}`;
+      if(a.profileAnalysis) out += `\n  [ANALISI PROFILO]: ${a.profileAnalysis.replace(/\n+/g," ").slice(0, 1000)}`;
+      if(a.videos && a.videos.length > 0) {
+        const topVids = a.videos.filter(v=>v.title).sort((v1,v2)=>(v2.score||0)-(v1.score||0)).slice(0,6).map(v=>v.title).join(" | ");
+        out += `\n  [VIDEO TOP ESTRATTI]: ${topVids}`;
+      }
+      return out;
+    }).join("\n\n");
+    const {text} = await callAI(
+      `Dati completi dei competitor selezionati:\n${accountList}`,
+      `Sei uno stratega di content marketing. Leggi l'analisi profilo e i titoli dei video virali estratti da questi competitor e crea una strategia differenziante per superarli:\n1. 🔍 ANALISI COMUNE - pattern emersi dai dati forniti\n2. 🎯 GAP DI MERCATO - angoli o macro-temi ignorati\n3. 🎬 STRATEGIA DIFFERENZIANTE - basato sull'analisi\n4. 📋 PIANO EDITORIALE 30 GIORNI - format e titoli suggeriti\n5. 🔁 FRAMEWORK RIPETIBILE\n6. ⚡ 3 AZIONI IMMEDIATE\nRispondi in italiano in modo formattato e leggibile.`
     );
     setResult(text); setLoading(false);
   };
@@ -365,7 +373,7 @@ function ViralFormula() {
   const [videoIdea,setVideoIdea]=useState(""); const [loading,setLoading]=useState(false); const [result,setResult]=useState("");
   const run = async () => {
     if(!videoIdea) return; setLoading(true); setResult("");
-    const {text} = await callClaude(`Idea: ${videoIdea}`,`Sei un esperto di psicologia virale. Analizza:\n1. 🧠 SCORE VIRALE /10\n2. ⚗️ INGREDIENTI MANCANTI\n3. 🔄 RIFORMULAZIONE OTTIMIZZATA\n4. 💬 5 VARIANTI TITOLO A/B\n5. 🎭 STRUTTURA EMOTIVA\n6. 📣 AMPLIFICATORI\nRispondi in italiano.`);
+    const {text} = await callAI(`Idea: ${videoIdea}`,`Sei un esperto di psicologia virale. Analizza:\n1. 🧠 SCORE VIRALE /10\n2. ⚗️ INGREDIENTI MANCANTI\n3. 🔄 RIFORMULAZIONE OTTIMIZZATA\n4. 💬 5 VARIANTI TITOLO A/B\n5. 🎭 STRUTTURA EMOTIVA\n6. 📣 AMPLIFICATORI\nRispondi in italiano.`);
     setResult(text); setLoading(false);
   };
   return (
@@ -1025,7 +1033,7 @@ Rispondi SOLO con JSON: {"queries":["query1","query2","query3","query4"]}`;
         <>
           {competitors.map(c=>{
             const isSelected = selectedAccounts.some(a=>a.handle===c.handle);
-            return <CompetitorRow key={c.id} comp={c} onDelete={deleteCompetitor} onScan={scanContent} onView={handleView} onProfile={analyzeProfile} onDiscover={discoverSimilar} scanning={scanning} analyzing={analyzing} discovering={discovering} isSelected={isSelected} onToggleStrategy={comp => isSelected ? onRemoveAccount(comp.handle) : onAddAccount({handle:comp.handle, platform:comp.platform, profileUrl: buildProfileUrlFromHandle(comp.handle, comp.platform)})} />;
+            return <CompetitorRow key={c.id} comp={c} onDelete={deleteCompetitor} onScan={scanContent} onView={handleView} onProfile={analyzeProfile} onDiscover={discoverSimilar} scanning={scanning} analyzing={analyzing} discovering={discovering} isSelected={isSelected} onToggleStrategy={comp => isSelected ? onRemoveAccount(comp.handle) : onAddAccount({handle:comp.handle, platform:comp.platform, profileUrl: buildProfileUrlFromHandle(comp.handle, comp.platform), profileAnalysis: comp.profileAnalysis, videos: comp.videos})} />;
           })}
         </>
       )}
@@ -1202,7 +1210,7 @@ export default function App() {
           <div style={{display:activeTab==="viral"?"block":"none"}}><ViralFormula/></div>
           <div style={{display:activeTab==="competitors"?"block":"none"}}><Competitors selectedAccounts={selectedAccounts} onAddAccount={addAccount} onRemoveAccount={removeAccount} onGoToStrategy={()=>setActiveTab("strategy")}/></div>
         </div>
-        <p style={{textAlign:"center",color:"#1e3a5f",fontSize:10,marginTop:16,fontFamily:"monospace"}}>Powered by Claude AI · Dati salvati in modo persistente</p>
+        <p style={{textAlign:"center",color:"#1e3a5f",fontSize:10,marginTop:16,fontFamily:"monospace"}}>Powered by Gemini AI · Dati salvati in modo persistente</p>
       </div>
     </div>
   );
