@@ -531,9 +531,6 @@ function Competitors() {
   const [searchKeywords,setSearchKeywords]=useState("");
   const [scanning,setScanning]=useState(null); const [analyzing,setAnalyzing]=useState(null); const [discovering,setDiscovering]=useState(null); const [batchLoading,setBatchLoading]=useState(false);
   const [similarResult,setSimilarResult]=useState(""); const [similarComp,setSimilarComp]=useState(null);
-  const [similarDebugInfo,setSimilarDebugInfo]=useState(""); const [similarRaw,setSimilarRaw]=useState("");
-  const [similarItems,setSimilarItems]=useState([]);
-  const [similarVideos,setSimilarVideos]=useState([]);
   const [selectedComp,setSelectedComp]=useState(null);
   const [scanTab,setScanTab]=useState("video");
   const [profileTab,setProfileTab]=useState("overview");
@@ -778,161 +775,24 @@ function Competitors() {
 
   const runSimilarSearch = async (comp, overrideKeywords=[]) => {
     setDiscovering(comp.id); setSimilarResult(""); setSimilarComp(comp);
-    setSimilarDebugInfo(""); setSimilarRaw(""); setSimilarItems([]); setSimilarVideos([]);
 
-    const list = Array.isArray(overrideKeywords) ? overrideKeywords : [];
-    const keywordsText = list.length ? list.join(" ") : (comp.analysisKeywords?.length ? comp.analysisKeywords.join(" ") : (comp.searchKeywords || ""));
-    const keywords = keywordsText.trim().split(/\s+/).slice(0,12).join(" ");
-    const queries = buildSimilarQueries(comp.platform, keywords, comp.videos || []);
-    const log = [];
-    const rawPayloads = [];
-    let allResults = [];
+    const videoTitles = (comp.videos || []).filter(v=>v.title).map(v=>`- ${v.title}`).join("\n");
+    const keywords = (overrideKeywords.length ? overrideKeywords.join(" ") : comp.analysisKeywords?.join(" ") || comp.searchKeywords || "").trim();
 
-    for (const { label, q } of queries) {
-      log.push(`Strategia: ${label}`);
-      log.push(`Query: "${q}"`);
-      setSimilarDebugInfo(log.join("\n"));
+    const prompt = `Profilo analizzato: ${comp.handle}\nPiattaforma: ${comp.platform}${keywords ? `\nNicchia / parole chiave: ${keywords}` : ""}${videoTitles ? `\n\nVideo trovati sul profilo:\n${videoTitles}` : ""}`;
+    const system = `Sei un esperto di social media scouting. In base al profilo e ai video forniti, suggerisci 5-8 creator simili su ${comp.platform}.
 
-      const { results, raw, error } = await tavilySearch({
-        query: q,
-        maxResults: 8,
-        searchDepth: "basic",
-        includeDomains: comp.platform === "TikTok" ? ["tiktok.com"] : ["instagram.com"]
-      });
+Per ogni creator indica:
+- Handle (@...)
+- Perché è simile (nicchia, stile, tono)
+- Cosa fa di diverso
+- Perché monitorarlo
+- URL profilo
 
-      rawPayloads.push({ label, query: q, error: error || null, raw });
+Rispondi in italiano. Puoi usare la tua conoscenza generale.`;
 
-      if (error) {
-        const msg = error.message || (typeof error === "string" ? error : JSON.stringify(error));
-        log.push(`Errore API: ${msg}`);
-        setSimilarDebugInfo(log.join("\n"));
-        continue;
-      }
-
-      const filtered = (results || []).filter(r => {
-        const url = (r.url || "").toLowerCase();
-        if (comp.platform === "TikTok") return url.includes("tiktok.com/@");
-        return url.includes("instagram.com/");
-      });
-
-      const existing = new Set(allResults.map(r => r.url));
-      const deduped = filtered.filter(r => r.url && !existing.has(r.url));
-      allResults = [...allResults, ...deduped];
-
-      log.push(`Risultati validi: ${filtered.length} | Totale unici: ${allResults.length}`);
-      setSimilarDebugInfo(log.join("\n"));
-    }
-
-    const isVideoUrl = (url="") => {
-      const u = url.toLowerCase();
-      if(comp.platform==="TikTok") return u.includes("tiktok.com/@") && u.includes("/video/");
-      if(comp.platform==="Instagram") return u.includes("instagram.com/reel/") || u.includes("instagram.com/p/") || u.includes("instagram.com/tv/");
-      return false;
-    };
-
-    const videos = allResults
-      .filter(r=>isVideoUrl(r.url || ""))
-      .map(r=>{
-        const handle = extractHandleFromUrl(r.url, comp.platform) || extractHandleFromText(`${r.title||""} ${r.content||""}`);
-        return {
-          title: r.title || "Video",
-          url: r.url || "",
-          desc: (r.content || r.snippet || "").slice(0, 260),
-          handle,
-          profileUrl: buildProfileUrlFromHandle(handle, comp.platform)
-        };
-      });
-    setSimilarVideos(videos);
-
-    const handles = Array.from(new Set(
-      videos.map(v=>v.handle).filter(Boolean)
-    )).slice(0, 8);
-    const profileSourcesByHandle = {};
-    for(const h of handles){
-      const hh = h.replace(/^@/,"");
-      const q = comp.platform==="TikTok"
-        ? `"@${hh}" tiktok creator`
-        : `"${hh}" instagram profilo`;
-      const search = await tavilySearch({
-        query: q,
-        maxResults: 5,
-        searchDepth: "basic",
-        includeDomains: comp.platform==="TikTok" ? ["tiktok.com"] : ["instagram.com"]
-      });
-      profileSourcesByHandle[h] = search.results || [];
-    }
-
-    const profileSources = handles.map((h,i)=>`[${i+1}] ${h}\n${buildSourcesFromResults(profileSourcesByHandle[h] || [])}`).join("\n\n");
-    const baseContext = `Profilo di partenza: ${comp.handle}\nPiattaforma: ${comp.platform}\nParole chiave: ${keywords || "(nessuna)"}`;
-
-    const evalPrompt = `${baseContext}\n\nValuta se questi profili sono competitor rilevanti in base ai contenuti. Usa SOLO le FONTI.\n\nFONTI PROFILI:\n${profileSources || "Nessuna fonte profilo."}`;
-    const evalSystem = `Rispondi SOLO con JSON:\n{"competitors":[{"handle":"@handle","profileUrl":"https://...","summary":"1-2 frasi sul profilo","relevance":"alta|media|bassa","reason":"perche e rilevante o non rilevante"}]}\nRegole: includi TUTTI i profili trovati nelle fonti. Se non sono rilevanti, imposta relevance:"bassa".`;
-    const evalResp = await callLLM({ provider: ACTIVE_PROVIDER, prompt: evalPrompt, system: evalSystem });
-    const evalJson = extractJsonBlock(evalResp.text || "").json;
-
-    if(evalJson && Array.isArray(evalJson.competitors)) {
-      const comps = evalJson.competitors.filter(c=>c.handle).map(c=>({
-        title: c.handle,
-        url: c.profileUrl || "",
-        desc: [c.summary, c.reason].filter(Boolean).join(" · "),
-        relevance: c.relevance || "bassa"
-      }));
-      setSimilarItems(comps);
-    } else {
-      const fallbackItems = handles.map(h=>{
-        const results = profileSourcesByHandle[h] || [];
-        const url = results[0]?.url || "";
-        const desc = (results[0]?.content || results[0]?.snippet || "").slice(0, 220);
-        return { title: h, url, desc, relevance: "bassa" };
-      });
-      setSimilarItems(fallbackItems);
-    }
-
-    setSimilarRaw(JSON.stringify({ keywords, queries, results: allResults, raw: rawPayloads, handles, profiles: profileSourcesByHandle }, null, 2));
-
-    if (allResults.length === 0) {
-      setSimilarResult("Nessuna fonte verificabile trovata per i simili. Prova ad aggiungere parole chiave o cambiare piattaforma.");
-      setDiscovering(null);
-      return;
-    }
-
-    const sources = buildSourcesFromResults(allResults);
-    const keywordsLine = keywords ? `Parole chiave richieste: ${keywords}` : "Parole chiave richieste: (nessuna)";
-
-    const prompt = `Trova creator simili su ${comp.platform} basandoti sui contenuti e sulle parole chiave. ${keywordsLine}.
-Non usare il nome dell'account di partenza. Usa solo le fonti fornite e includi solo profili reali con URL verificabili.`;
-
-    const system = `Sei un esperto di social media scouting. Analizza i contenuti e cerca creator simili sulla stessa piattaforma.
-
-Produci una lista di creator simili con:
-1. PERCHE E SIMILE - stile, nicchia, approccio
-2. DIMENSIONE - follower stimati
-3. DIFFERENZA CHIAVE - cosa fa di diverso rispetto al profilo di partenza
-4. PERCHE MONITORARLO - cosa puoi imparare
-
-Formato risposta:
----
-**@handle** ? [piattaforma]
-Follower: ~Xk
-Simile perche: ...
-Si differenzia per: ...
-Monitoralo perche: ...
-Profilo: https://...
----
-
-Regole: usa SOLO le fonti. Se un profilo non ha URL verificabile nelle fonti, non inserirlo. Rispondi in italiano.`;
-
-    const fullPrompt = `${prompt}
-
-FONTI (usa solo queste, non inventare URL):
-${sources}`;
-    const { text, error } = await callLLM({ provider: ACTIVE_PROVIDER, prompt: fullPrompt, system });
-
-    if (error || !text || !text.trim()) {
-      setSimilarResult("");
-    } else {
-      setSimilarResult(text);
-    }
+    const { text, error } = await callLLM({ provider: ACTIVE_PROVIDER, prompt, system });
+    setSimilarResult(error ? "Errore nella risposta LLM." : (text || "Nessun risultato."));
     setDiscovering(null);
   };
 
@@ -1037,9 +897,9 @@ ${sources}`;
 
           {!scanning&&(
             <div style={{display:"flex",gap:6,marginBottom:12,overflowX:"auto"}}>
-              {["video","profilo","simili","competitor"].map(tab=>(
+              {["video","profilo","competitor"].map(tab=>(
                 <button key={tab} onClick={()=>setScanTab(tab)} style={{flexShrink:0,padding:"8px 12px",borderRadius:8,border:scanTab===tab?`1px solid #38bdf866`:"1px solid #0e2040",background:scanTab===tab?"#0b1b33":"#060d1a",color:scanTab===tab?"#38bdf8":"#4a6a8a",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"monospace",textTransform:"uppercase"}}>
-                  {tab==="video"?"Video":tab==="profilo"?"Analisi Profilo":tab==="simili"?"Video simili":"Competitor"}
+                  {tab==="video"?"Video":tab==="profilo"?"Analisi Profilo":"Competitor"}
                 </button>
               ))}
             </div>
@@ -1116,73 +976,10 @@ ${sources}`;
             )
           )}
 
-          {!scanning&&scanTab==="simili"&&(
-            (similarVideos.length>0) ? (
-              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:10}}>
-                {similarVideos.map((it,i)=>(
-                  <div key={`${it.url}-${i}`} style={{background:"#070f1e",border:"1px solid #1e3a5f",borderRadius:10,padding:12}}>
-                    <div style={{fontSize:12,color:"#38bdf8",fontFamily:"monospace",fontWeight:700,marginBottom:6}}>
-                      {it.title}
-                    </div>
-                    {it.url && (
-                      <a href={it.url} target="_blank" rel="noreferrer" style={{fontSize:11,color:"#7a9bc0",fontFamily:"monospace",textDecoration:"none",display:"block",marginBottom:6,wordBreak:"break-all"}}>
-                        {it.url}
-                      </a>
-                    )}
-                    {it.handle && (
-                      <div style={{fontSize:11,color:"#4a6a8a",fontFamily:"monospace",marginBottom:6}}>
-                        Profilo: {it.handle}
-                      </div>
-                    )}
-                    {it.profileUrl && (
-                      <a href={it.profileUrl} target="_blank" rel="noreferrer" style={{fontSize:11,color:"#00ff9d",fontFamily:"monospace",textDecoration:"none",display:"block",marginBottom:6,wordBreak:"break-all"}}>
-                        {it.profileUrl}
-                      </a>
-                    )}
-                    {it.desc && (
-                      <div style={{fontSize:11,color:"#4a6a8a",fontFamily:"monospace",lineHeight:1.5}}>
-                        {it.desc}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{color:"#2a4a6a",fontFamily:"monospace",fontSize:12}}>Nessun video simile trovato. Esegui prima la scansione o amplia le parole chiave.</div>
-            )
-          )}
-
           {!scanning&&scanTab==="competitor"&&(
-            (similarItems.length>0) ? (
-              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:10}}>
-                {similarItems.map((it,i)=>(
-                  <div key={`${it.url}-${i}`} style={{background:"#070f1e",border:"1px solid #1e3a5f",borderRadius:10,padding:12}}>
-                    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",gap:8,marginBottom:6}}>
-                      <div style={{fontSize:12,color:"#f59e0b",fontFamily:"monospace",fontWeight:700}}>
-                        {it.title}
-                      </div>
-                      {it.relevance && (
-                        <span style={{fontSize:9,padding:"2px 6px",borderRadius:6,border:"1px solid #1e3a5f",color:it.relevance==="alta"?"#00ff9d":it.relevance==="media"?"#f59e0b":"#4a6a8a",fontFamily:"monospace",textTransform:"uppercase"}}>
-                          {it.relevance}
-                        </span>
-                      )}
-                    </div>
-                    {it.url && (
-                      <a href={it.url} target="_blank" rel="noreferrer" style={{fontSize:11,color:"#7a9bc0",fontFamily:"monospace",textDecoration:"none",display:"block",marginBottom:6,wordBreak:"break-all"}}>
-                        {it.url}
-                      </a>
-                    )}
-                    {it.desc && (
-                      <div style={{fontSize:11,color:"#4a6a8a",fontFamily:"monospace",lineHeight:1.5}}>
-                        {it.desc}
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{color:"#2a4a6a",fontFamily:"monospace",fontSize:12}}>Nessun competitor rilevante trovato. Esegui prima la scansione o amplia le parole chiave.</div>
-            )
+            similarResult
+              ? <ResultBox text={similarResult} color="#f59e0b"/>
+              : <div style={{color:"#2a4a6a",fontFamily:"monospace",fontSize:12}}>Nessun risultato. Clicca "Trova simili" per cercare competitor simili.</div>
           )}
 
           {/* Debug panel always shown after scan */}
@@ -1193,9 +990,6 @@ ${sources}`;
       )}
 
       {(analyzing||batchLoading||discovering)&&<Spinner color="#a78bfa"/>}
-      {!discovering&&(similarDebugInfo||similarRaw)&&(
-        <DebugPanel info={similarDebugInfo} rawText={similarRaw}/>
-      )}
     </div>
   );
 }
