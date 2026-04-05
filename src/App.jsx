@@ -387,12 +387,12 @@ function buildSearchQueries(handle, platform, keywords="") {
 function buildSimilarQueries(platform, keywords="") {
   const k = keywords ? ` ${keywords}` : "";
   if(platform==="TikTok") return [
-    { label:"site", q:`site:tiktok.com tiktok creator${k}`, useSite:true },
-    { label:"web", q:`creator tiktok${k}`, useSite:false },
+    { label:"site", q:`site:tiktok.com tiktok video creator${k}`, useSite:true },
+    { label:"web", q:`tiktok video creator${k}`, useSite:false },
   ];
   return [
-    { label:"site", q:`site:instagram.com instagram creator${k}`, useSite:true },
-    { label:"web", q:`creator instagram${k}`, useSite:false },
+    { label:"site", q:`site:instagram.com instagram reel creator${k}`, useSite:true },
+    { label:"web", q:`instagram reel creator${k}`, useSite:false },
   ];
 }
 
@@ -689,7 +689,7 @@ function Competitors() {
 
     const list = Array.isArray(overrideKeywords) ? overrideKeywords : [];
     const keywordsText = list.length ? list.join(" ") : (comp.analysisKeywords?.length ? comp.analysisKeywords.join(" ") : (comp.searchKeywords || ""));
-    const keywords = keywordsText.trim();
+    const keywords = keywordsText.trim().split(/\s+/).slice(0,12).join(" ");
     const queries = buildSimilarQueries(comp.platform, keywords);
     const log = [];
     const rawPayloads = [];
@@ -730,13 +730,47 @@ function Competitors() {
       setSimilarDebugInfo(log.join("\n"));
     }
 
-    const items = allResults.map(r=>({
-      title: r.title || extractHandleFromUrl(r.url, comp.platform) || "Profilo",
-      url: r.url || "",
-      desc: (r.content || r.snippet || "").slice(0, 280)
-    }));
-    setSimilarItems(items);
-    setSimilarRaw(JSON.stringify({ keywords, queries, results: allResults, raw: rawPayloads }, null, 2));
+    const handles = Array.from(new Set(allResults.map(r=>extractHandleFromUrl(r.url, comp.platform)).filter(Boolean))).slice(0, 8);
+    const profileSourcesByHandle = {};
+    for(const h of handles){
+      const q = comp.platform==="TikTok"
+        ? `site:tiktok.com/@${h.replace(/^@/,"")}`
+        : `site:instagram.com/${h.replace(/^@/,"")}/`;
+      const search = await tavilySearch({
+        query: q,
+        maxResults: 5,
+        searchDepth: "basic",
+        includeDomains: comp.platform==="TikTok" ? ["tiktok.com"] : ["instagram.com"]
+      });
+      profileSourcesByHandle[h] = search.results || [];
+    }
+
+    const profileSources = handles.map((h,i)=>`[${i+1}] ${h}\n${buildSourcesFromResults(profileSourcesByHandle[h] || [])}`).join("\n\n");
+    const baseContext = `Profilo di partenza: ${comp.handle}\nPiattaforma: ${comp.platform}\nParole chiave: ${keywords || "(nessuna)"}`;
+
+    const evalPrompt = `${baseContext}\n\nValuta se questi profili sono competitor rilevanti in base ai contenuti. Usa SOLO le FONTI.\n\nFONTI PROFILI:\n${profileSources || "Nessuna fonte profilo."}`;
+    const evalSystem = `Rispondi SOLO con JSON:\n{"competitors":[{"handle":"@handle","profileUrl":"https://...","summary":"1-2 frasi sul profilo","relevance":"alta|media|bassa","reason":"perche e rilevante"}]}\nRegole: includi solo competitor con relevance alta o media. Se non ci sono, usa lista vuota.`;
+    const evalResp = await callLLM({ provider: ACTIVE_PROVIDER, prompt: evalPrompt, system: evalSystem });
+    const evalJson = extractJsonBlock(evalResp.text || "").json;
+
+    if(evalJson && Array.isArray(evalJson.competitors)) {
+      const comps = evalJson.competitors.filter(c=>c.handle).map(c=>({
+        title: c.handle,
+        url: c.profileUrl || "",
+        desc: [c.summary, c.reason].filter(Boolean).join(" · ")
+      }));
+      setSimilarItems(comps);
+    } else {
+      const fallbackItems = handles.map(h=>{
+        const results = profileSourcesByHandle[h] || [];
+        const url = results[0]?.url || "";
+        const desc = (results[0]?.content || results[0]?.snippet || "").slice(0, 220);
+        return { title: h, url, desc };
+      });
+      setSimilarItems(fallbackItems);
+    }
+
+    setSimilarRaw(JSON.stringify({ keywords, queries, results: allResults, raw: rawPayloads, handles, profiles: profileSourcesByHandle }, null, 2));
 
     if (allResults.length === 0) {
       setSimilarResult("Nessuna fonte verificabile trovata per i simili. Prova ad aggiungere parole chiave o cambiare piattaforma.");
@@ -777,13 +811,7 @@ ${sources}`;
     const { text, error } = await callLLM({ provider: ACTIVE_PROVIDER, prompt: fullPrompt, system });
 
     if (error || !text || !text.trim()) {
-      const map = new Map();
-      for (const r of allResults) {
-        const handle = extractHandleFromUrl(r.url, comp.platform) || r.title || r.url;
-        if(!map.has(handle)) map.set(handle, r.url);
-      }
-      const list = Array.from(map.entries()).slice(0, 12).map(([h,u])=>`- ${h}\n  ${u}`).join("\n");
-      setSimilarResult(`Non ho potuto generare l'analisi dettagliata. Ecco i profili trovati dalle fonti:\n\n${list || "Nessun profilo."}`);
+      setSimilarResult("");
     } else {
       setSimilarResult(text);
     }
@@ -971,37 +999,28 @@ ${sources}`;
           )}
 
           {!scanning&&scanTab==="competitor"&&(
-            (similarItems.length>0 || similarResult) ? (
-              <div>
-                {similarItems.length>0 && (
-                  <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:10,marginBottom:12}}>
-                    {similarItems.map((it,i)=>(
-                      <div key={`${it.url}-${i}`} style={{background:"#070f1e",border:"1px solid #1e3a5f",borderRadius:10,padding:12}}>
-                        <div style={{fontSize:12,color:"#f59e0b",fontFamily:"monospace",fontWeight:700,marginBottom:6}}>
-                          {it.title}
-                        </div>
-                        {it.url && (
-                          <a href={it.url} target="_blank" rel="noreferrer" style={{fontSize:11,color:"#7a9bc0",fontFamily:"monospace",textDecoration:"none",display:"block",marginBottom:6,wordBreak:"break-all"}}>
-                            {it.url}
-                          </a>
-                        )}
-                        {it.desc && (
-                          <div style={{fontSize:11,color:"#4a6a8a",fontFamily:"monospace",lineHeight:1.5}}>
-                            {it.desc}
-                          </div>
-                        )}
+            (similarItems.length>0) ? (
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:10}}>
+                {similarItems.map((it,i)=>(
+                  <div key={`${it.url}-${i}`} style={{background:"#070f1e",border:"1px solid #1e3a5f",borderRadius:10,padding:12}}>
+                    <div style={{fontSize:12,color:"#f59e0b",fontFamily:"monospace",fontWeight:700,marginBottom:6}}>
+                      {it.title}
+                    </div>
+                    {it.url && (
+                      <a href={it.url} target="_blank" rel="noreferrer" style={{fontSize:11,color:"#7a9bc0",fontFamily:"monospace",textDecoration:"none",display:"block",marginBottom:6,wordBreak:"break-all"}}>
+                        {it.url}
+                      </a>
+                    )}
+                    {it.desc && (
+                      <div style={{fontSize:11,color:"#4a6a8a",fontFamily:"monospace",lineHeight:1.5}}>
+                        {it.desc}
                       </div>
-                    ))}
+                    )}
                   </div>
-                )}
-                {similarResult && !similarResult.startsWith("Non ho potuto") && (
-                  <div style={{background:"linear-gradient(135deg,#0a1628,#0d1f3c)",...glow("#f59e0b"),borderRadius:12,padding:16,fontSize:13,color:"#c8d8f0",lineHeight:1.8,whiteSpace:"pre-wrap",maxHeight:320,overflowY:"auto"}}>
-                    {similarResult}
-                  </div>
-                )}
+                ))}
               </div>
             ) : (
-              <div style={{color:"#2a4a6a",fontFamily:"monospace",fontSize:12}}>Nessun risultato competitor disponibile. Esegui prima la scansione.</div>
+              <div style={{color:"#2a4a6a",fontFamily:"monospace",fontSize:12}}>Nessun competitor rilevante trovato. Esegui prima la scansione o amplia le parole chiave.</div>
             )
           )}
 
