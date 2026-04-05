@@ -577,7 +577,27 @@ function Competitors() {
         setRawResponse(text);
         setScanLog([...log]);
 
-        const {videos, debugInfo} = extractVideos(text);
+        let {videos, debugInfo} = extractVideos(text);
+        if(videos.length===0 && raw && Array.isArray(raw.results)) {
+          const fallback = raw.results
+            .map(r=>({
+              title: r.title || "Post",
+              url: r.url || "",
+              score: 6,
+              tags: [],
+              analysis: "Estratto dai risultati di ricerca"
+            }))
+            .filter(v=>{
+              const url = (v.url||"").toLowerCase();
+              if(comp.platform==="Instagram") return url.includes("instagram.com/p/") || url.includes("instagram.com/reel/") || url.includes("instagram.com/tv/");
+              if(comp.platform==="TikTok") return url.includes("tiktok.com/@") && url.includes("/video/");
+              return false;
+            });
+          if(fallback.length>0){
+            videos = fallback;
+            debugInfo += ` | Fallback: ${fallback.length} URL da Tavily`;
+          }
+        }
         const filtered = filterVideosByHandle(videos, comp.handle, comp.platform);
         log.push(`   Verifica URL...`);
         setScanLog([...log]);
