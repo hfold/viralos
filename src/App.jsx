@@ -334,9 +334,14 @@ function VideoStrategy({selectedAccounts=[], onClearAccounts}) {
       }
       return out;
     }).join("\n\n");
+    const basePrompt = `Dati completi dei competitor selezionati:\n${accountList}`;
+    const userGoal = goal ? `\n\nOBIETTIVO DEL CLIENTE: ${goal}` : "";
+    const userAudience = audience ? `\nTARGET DEL CLIENTE: ${audience}` : "";
+    const userPlatform = platform ? `\nPIATTAFORMA PRINCIPALE: ${platform}` : "";
+
     const {text} = await callAI(
-      `Dati completi dei competitor selezionati:\n${accountList}`,
-      `Sei uno stratega di content marketing. Leggi l'analisi profilo e i titoli dei video virali estratti da questi competitor e crea una strategia differenziante per superarli:\n1. 🔍 ANALISI COMUNE - pattern emersi dai dati forniti\n2. 🎯 GAP DI MERCATO - angoli o macro-temi ignorati\n3. 🎬 STRATEGIA DIFFERENZIANTE - basato sull'analisi\n4. 📋 PIANO EDITORIALE 30 GIORNI - format e titoli suggeriti\n5. 🔁 FRAMEWORK RIPETIBILE\n6. ⚡ 3 AZIONI IMMEDIATE\nRispondi in italiano in modo formattato e leggibile.`
+      basePrompt + userGoal + userAudience + userPlatform,
+      `Sei uno stratega di content marketing. Leggi l'analisi profilo e i titoli dei video virali estratti da questi competitor e crea una strategia differenziante per superarli e per far raggiungere al cliente il suo OBIETTIVO specifico:\n1. 🔍 ANALISI COMUNE - pattern emersi dai dati forniti\n2. 🎯 GAP DI MERCATO - angoli o macro-temi ignorati\n3. 🎬 STRATEGIA DIFFERENZIANTE - come raggiungere l'obiettivo del cliente distinguendosi dai competitor\n4. 📋 PIANO EDITORIALE 30 GIORNI - format e titoli suggeriti\n5. 🔁 FRAMEWORK RIPETIBILE\n6. ⚡ 3 AZIONI IMMEDIATE\nRispondi in italiano in modo formattato e leggibile.`
     );
     setResult(text); setLoading(false);
   };
