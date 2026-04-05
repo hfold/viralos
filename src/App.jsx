@@ -187,6 +187,12 @@ async function loadCompetitors() {
 async function saveCompetitors(list) {
   try { await window.storage.set("viralosc2",JSON.stringify(list)); } catch {}
 }
+async function loadSelectedAccounts() {
+  try { const r=await window.storage.get("viralos_selected"); return r?JSON.parse(r.value):[]; } catch { return []; }
+}
+async function saveSelectedAccounts(list) {
+  try { await window.storage.set("viralos_selected",JSON.stringify(list)); } catch {}
+}
 
 // ─── SHARED UI ────────────────────────────────────────────────────
 const Spinner = ({color="#00ff9d",label="Analisi in corso…"}) => (
@@ -207,8 +213,8 @@ function CollapsibleSection({title, color="#38bdf8", children, defaultOpen=true,
   return (
     <div style={{marginBottom:6,border:`1px solid ${color}22`,borderRadius:10,overflow:"hidden"}}>
       <button onClick={()=>setOpen(!open)} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:`${color}0d`,border:"none",cursor:"pointer",color,fontFamily:"monospace",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:.8}}>
-        <span>{icon&&<span style={{marginRight:6}}>{icon}</span>}{title}</span>
-        <span style={{fontSize:10,opacity:.7}}>{open?"▲":"▼"}</span>
+        <span style={{display:"flex",alignItems:"center",gap:6}}>{icon&&<span>{icon}</span>}{title}</span>
+        <span style={{fontSize:10,opacity:.7,flexShrink:0,marginLeft:8}}>{open?"▲":"▼"}</span>
       </button>
       {open&&<div style={{padding:"12px 14px",background:"#04080f",fontSize:12,color:"#c8d8f0",lineHeight:1.75,whiteSpace:"pre-wrap"}}>{children}</div>}
     </div>
@@ -309,7 +315,7 @@ function HookGenerator() {
 }
 
 // ─── STRATEGY ─────────────────────────────────────────────────────
-function VideoStrategy() {
+function VideoStrategy({selectedAccounts=[], onClearAccounts}) {
   const [goal,setGoal]=useState(""); const [audience,setAudience]=useState("");
   const [platform,setPlatform]=useState("Instagram Reels"); const [loading,setLoading]=useState(false); const [result,setResult]=useState("");
   const run = async () => {
@@ -317,8 +323,33 @@ function VideoStrategy() {
     const {text} = await callClaude(`Obiettivo: ${goal}\nTarget: ${audience||"n/a"}\nPiattaforma: ${platform}`,`Sei uno stratega di content marketing. Crea:\n1. 🎬 STRUTTURA VIDEO secondo per secondo\n2. 📋 PIANO EDITORIALE 30 GIORNI\n3. 🔁 FRAMEWORK RIPETIBILE\n4. 📈 KPI E METRICHE\n5. 🤝 CTA STRATEGY\nRispondi in italiano.`);
     setResult(text); setLoading(false);
   };
+  const runFromCompetitors = async () => {
+    if(!selectedAccounts.length) return; setLoading(true); setResult("");
+    const accountList = selectedAccounts.map(a=>`- ${a.handle} (${a.platform})${a.profileUrl?` → ${a.profileUrl}`:""}`).join("\n");
+    const {text} = await callClaude(
+      `Account competitor selezionati:\n${accountList}`,
+      `Sei uno stratega di content marketing. Analizza questi account competitor e crea una strategia differenziante per superarli:\n1. 🔍 ANALISI COMUNE - cosa hanno in comune questi competitor\n2. 🎯 GAP DI MERCATO - cosa non stanno coprendo\n3. 🎬 STRATEGIA DIFFERENZIANTE - come posizionarti in modo unico\n4. 📋 PIANO EDITORIALE 30 GIORNI basato sui gap trovati\n5. 🔁 FRAMEWORK RIPETIBILE\n6. ⚡ 3 AZIONI IMMEDIATE\nRispondi in italiano.`
+    );
+    setResult(text); setLoading(false);
+  };
   return (
     <div>
+      {selectedAccounts.length>0&&(
+        <div style={{marginBottom:18,border:"1px solid #a78bfa33",borderRadius:10,padding:12,background:"#0d0a1f"}}>
+          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
+            <div style={{fontSize:10,color:"#a78bfa",letterSpacing:2,textTransform:"uppercase",fontFamily:"monospace"}}>Account selezionati ({selectedAccounts.length})</div>
+            {onClearAccounts&&<button onClick={onClearAccounts} style={{background:"none",border:"none",color:"#2a4a6a",cursor:"pointer",fontSize:11,fontFamily:"monospace"}}>✕ Svuota</button>}
+          </div>
+          <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:12}}>
+            {selectedAccounts.map(a=>(
+              <span key={a.handle} style={{fontSize:11,color:"#a78bfa",background:"#1a1035",border:"1px solid #a78bfa33",borderRadius:6,padding:"3px 8px",fontFamily:"monospace"}}>{a.handle}</span>
+            ))}
+          </div>
+          <Btn onClick={runFromCompetitors} loading={loading} color="#a78bfa">
+            {loading?"Analisi…":"🎬 Genera strategia dai competitor"}
+          </Btn>
+        </div>
+      )}
       <div style={{marginBottom:14}}><label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Obiettivo principale *</label><Textarea value={goal} onChange={setGoal} placeholder="es. acquisire clienti per consulenze..." rows={2}/></div>
       <div style={{marginBottom:14}}><label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Target audience</label><Textarea value={audience} onChange={setAudience} placeholder="es. donne 30-45 anni..." rows={2}/></div>
       <Sel value={platform} onChange={setPlatform} options={PLATFORMS} label="Piattaforma principale"/>
@@ -538,7 +569,7 @@ function CompetitorRow({comp,onDelete,onScan,onProfile,onDiscover,scanning,analy
   );
 }
 
-function Competitors() {
+function Competitors({selectedAccounts=[], onAddAccount, onRemoveAccount, onGoToStrategy}) {
   const [competitors,setCompetitors]=useState([]);
   const [handle,setHandle]=useState(""); const [platform,setPlatform]=useState("TikTok");
   const [searchKeywords,setSearchKeywords]=useState("");
@@ -935,11 +966,18 @@ Rispondi SOLO con JSON: {"queries":["query1","query2","query3","query4"]}`;
           {competitors.map(c=>(
             <CompetitorRow key={c.id} comp={c} onDelete={deleteCompetitor} onScan={scanContent} onProfile={analyzeProfile} onDiscover={discoverSimilar} scanning={scanning} analyzing={analyzing} discovering={discovering}/>
           ))}
-          {competitors.length>=2&&(
-            <div style={{marginTop:4}}>
-              <Btn onClick={analyzeAll} loading={batchLoading} color="#a78bfa">
-                {batchLoading?"📊 Analisi comparativa…":`📊 Confronta tutti i ${competitors.length} competitor`}
-              </Btn>
+          {selectedAccounts.length>0&&(
+            <div style={{marginTop:10,border:"1px solid #a78bfa33",borderRadius:10,padding:10,background:"#0d0a1f"}}>
+              <div style={{fontSize:10,color:"#a78bfa",letterSpacing:2,textTransform:"uppercase",fontFamily:"monospace",marginBottom:8}}>Account selezionati ({selectedAccounts.length})</div>
+              <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:10}}>
+                {selectedAccounts.map(a=>(
+                  <span key={a.handle} style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:11,color:"#a78bfa",background:"#1a1035",border:"1px solid #a78bfa33",borderRadius:6,padding:"3px 8px",fontFamily:"monospace"}}>
+                    {a.handle}
+                    <button onClick={()=>onRemoveAccount(a.handle)} style={{background:"none",border:"none",color:"#4a3a6a",cursor:"pointer",fontSize:12,padding:0,lineHeight:1}}>✕</button>
+                  </span>
+                ))}
+              </div>
+              <Btn onClick={onGoToStrategy} color="#a78bfa" small>🎬 Genera strategia dai competitor →</Btn>
             </div>
           )}
         </>
@@ -1030,13 +1068,25 @@ Rispondi SOLO con JSON: {"queries":["query1","query2","query3","query4"]}`;
             similarItems.length>0 ? (
               <div>
                 {similarResult&&<div style={{fontSize:10,color:"#4a6a8a",fontFamily:"monospace",marginBottom:10}}>Query usate: {similarResult}</div>}
-                {similarItems.map((it,i)=>(
-                  <CollapsibleSection key={`${it.handle}-${i}`} title={it.handle} icon="👤" color="#f59e0b" defaultOpen={false}>
-                    {it.profileUrl&&<a href={it.profileUrl} target="_blank" rel="noreferrer" style={{display:"inline-block",color:"#00ff9d",fontFamily:"monospace",fontSize:12,marginBottom:8,textDecoration:"none",fontWeight:700}}>{it.profileUrl}</a>}
-                    {it.query&&<div style={{fontSize:10,color:"#4a6a8a",fontFamily:"monospace",marginBottom:6}}>Query: {it.query}</div>}
-                    {it.desc&&<div style={{color:"#8aa8c8",lineHeight:1.6,fontSize:11}}>{it.desc}</div>}
-                  </CollapsibleSection>
-                ))}
+                {similarItems.map((it,i)=>{
+                  const isSelected = selectedAccounts.some(a=>a.handle===it.handle);
+                  return (
+                    <CollapsibleSection key={`${it.handle}-${i}`} title={
+                      <span style={{display:"flex",alignItems:"center",gap:8}}>
+                        {it.handle}
+                        {onAddAccount&&(
+                          <button onClick={e=>{e.stopPropagation(); isSelected?onRemoveAccount(it.handle):onAddAccount({handle:it.handle,platform:comp.platform,profileUrl:it.profileUrl||""});}} style={{background:isSelected?"#1a1035":"#0a1628",border:`1px solid ${isSelected?"#a78bfa66":"#1e3a5f"}`,color:isSelected?"#a78bfa":"#4a6a8a",borderRadius:5,padding:"2px 7px",cursor:"pointer",fontSize:10,fontFamily:"monospace",lineHeight:1.4}}>
+                            {isSelected?"✓ Selezionato":"+ Seleziona"}
+                          </button>
+                        )}
+                      </span>
+                    } icon="👤" color="#f59e0b" defaultOpen={false}>
+                      {it.profileUrl&&<a href={it.profileUrl} target="_blank" rel="noreferrer" style={{display:"inline-block",color:"#00ff9d",fontFamily:"monospace",fontSize:12,marginBottom:8,textDecoration:"none",fontWeight:700}}>{it.profileUrl}</a>}
+                      {it.query&&<div style={{fontSize:10,color:"#4a6a8a",fontFamily:"monospace",marginBottom:6}}>Query: {it.query}</div>}
+                      {it.desc&&<div style={{color:"#8aa8c8",lineHeight:1.6,fontSize:11}}>{it.desc}</div>}
+                    </CollapsibleSection>
+                  );
+                })}
               </div>
             ) : (
               <div style={{color:"#2a4a6a",fontFamily:"monospace",fontSize:12}}>Nessun risultato. Clicca "Trova simili" per cercare competitor simili.</div>
@@ -1058,7 +1108,28 @@ Rispondi SOLO con JSON: {"queries":["query1","query2","query3","query4"]}`;
 // ─── APP ──────────────────────────────────────────────────────────
 export default function App() {
   const [activeTab,setActiveTab]=useState("competitors");
+  const [selectedAccounts,setSelectedAccounts]=useState([]);
   const activeColor=TAB_COLORS[activeTab];
+
+  useEffect(()=>{ loadSelectedAccounts().then(setSelectedAccounts); },[]);
+
+  const addAccount = async (account) => {
+    setSelectedAccounts(prev=>{
+      if(prev.some(a=>a.handle===account.handle)) return prev;
+      const next=[...prev,account];
+      saveSelectedAccounts(next);
+      return next;
+    });
+  };
+  const removeAccount = async (handle) => {
+    setSelectedAccounts(prev=>{
+      const next=prev.filter(a=>a.handle!==handle);
+      saveSelectedAccounts(next);
+      return next;
+    });
+  };
+  const clearAccounts = async () => { setSelectedAccounts([]); await saveSelectedAccounts([]); };
+
   return (
     <div style={{minHeight:"100vh",background:"#04080f",fontFamily:"'Georgia','Times New Roman',serif",paddingBottom:60,backgroundImage:`radial-gradient(ellipse at 20% 50%,#00ff9d08,transparent 50%),radial-gradient(ellipse at 80% 20%,#a78bfa08,transparent 50%)`}}>
       <style>{`@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}@keyframes slideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:#070f1e}::-webkit-scrollbar-thumb{background:#1e3a5f;border-radius:2px}select option{background:#070f1e}textarea::placeholder,input::placeholder{color:#2a4a6a}`}</style>
@@ -1090,9 +1161,9 @@ export default function App() {
           </div>
           {activeTab==="trend"&&<TrendScanner/>}
           {activeTab==="hook"&&<HookGenerator/>}
-          {activeTab==="strategy"&&<VideoStrategy/>}
+          {activeTab==="strategy"&&<VideoStrategy selectedAccounts={selectedAccounts} onClearAccounts={clearAccounts}/>}
           {activeTab==="viral"&&<ViralFormula/>}
-          {activeTab==="competitors"&&<Competitors/>}
+          {activeTab==="competitors"&&<Competitors selectedAccounts={selectedAccounts} onAddAccount={addAccount} onRemoveAccount={removeAccount} onGoToStrategy={()=>setActiveTab("strategy")}/>}
         </div>
         <p style={{textAlign:"center",color:"#1e3a5f",fontSize:10,marginTop:16,fontFamily:"monospace"}}>Powered by Claude AI · Dati salvati in modo persistente</p>
       </div>
