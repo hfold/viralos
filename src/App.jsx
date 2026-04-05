@@ -543,7 +543,7 @@ Regole:
 - keywords: 6-12 parole chiave brevi, senza @, senza hashtag, 1-3 parole ciascuna`;
 
 
-function CompetitorRow({comp,onDelete,onScan,onProfile,onDiscover,scanning,analyzing,discovering}) {
+function CompetitorRow({comp,onDelete,onScan,onProfile,onDiscover,scanning,analyzing,discovering, isSelected, onToggleStrategy}) {
   const icon=comp.platform==="Instagram"?"📸":"🎵";
   return (
     <div style={{background:"#070f1e",border:"1px solid #1e3a5f",borderRadius:10,padding:14,marginBottom:10}}>
@@ -563,7 +563,11 @@ function CompetitorRow({comp,onDelete,onScan,onProfile,onDiscover,scanning,analy
         <Btn onClick={()=>onScan(comp)} loading={scanning===comp.id} color="#38bdf8" small>
           {scanning===comp.id?"🔍 Ricerca…":"🔍 Scansiona"}
         </Btn>
-        {/* Solo Scansiona */}
+        {comp.lastScan && (
+          <Btn onClick={()=>onToggleStrategy(comp)} color="#a78bfa" small>
+            {isSelected ? "✅ In Strategia" : "➕ Aggiungi a Strategia"}
+          </Btn>
+        )}
       </div>
     </div>
   );
@@ -592,9 +596,11 @@ function Competitors({selectedAccounts=[], onAddAccount, onRemoveAccount, onGoTo
   const addCompetitor = async () => {
     if(!handle.trim()) return;
     const clean=handle.replace(/^@/,"").replace(/https?:\/\/(www\.)?(instagram|tiktok)\.com\//,"").replace(/\?.*/,"").replace(/\//g,"");
-    await persist([...competitors,{id:Date.now().toString(),handle:"@"+clean,platform,searchKeywords:searchKeywords.trim(),addedAt:Date.now(),lastScan:null,videos:[]}]);
+    const newComp = {id:Date.now().toString(),handle:"@"+clean,platform,searchKeywords:searchKeywords.trim(),addedAt:Date.now(),lastScan:null,videos:[]};
+    await persist([...competitors, newComp]);
     setHandle("");
     setSearchKeywords("");
+    scanContent(newComp);
   };
 
   const deleteCompetitor = async (id) => {
@@ -606,6 +612,15 @@ function Competitors({selectedAccounts=[], onAddAccount, onRemoveAccount, onGoTo
     const updated=competitors.map(c=>c.id===compId?{...c,videos:c.videos.filter(v=>(v.url||v.title)!==key)}:c);
     await persist(updated);
     setSelectedComp(prev=>prev?.id===compId?{...prev,videos:prev.videos.filter(v=>(v.url||v.title)!==key)}:prev);
+  };
+
+  const handleScanSimilar = async (it) => {
+    let targetComp = competitors.find(c => c.handle.toLowerCase() === it.handle.toLowerCase());
+    if(!targetComp) {
+      targetComp = {id:Date.now().toString(),handle:it.handle,platform:(selectedComp?.platform || "TikTok"),searchKeywords:"",addedAt:Date.now(),lastScan:null,videos:[]};
+      await persist([...competitors, targetComp]);
+    }
+    scanContent(targetComp);
   };
 
   // Multi-strategy scan
@@ -947,7 +962,7 @@ Rispondi SOLO con JSON: {"queries":["query1","query2","query3","query4"]}`;
             </select>
           </div>
         </div>
-        <Btn onClick={addCompetitor} loading={false} color="#38bdf8">➕ Aggiungi alla lista</Btn>
+        <Btn onClick={addCompetitor} loading={false} color="#38bdf8">🔍 Scansiona</Btn>
       </div>
 
       {storageReady&&(
@@ -978,9 +993,10 @@ Rispondi SOLO con JSON: {"queries":["query1","query2","query3","query4"]}`;
         </div>
       ):(
         <>
-          {competitors.map(c=>(
-            <CompetitorRow key={c.id} comp={c} onDelete={deleteCompetitor} onScan={scanContent} onProfile={analyzeProfile} onDiscover={discoverSimilar} scanning={scanning} analyzing={analyzing} discovering={discovering}/>
-          ))}
+          {competitors.map(c=>{
+            const isSelected = selectedAccounts.some(a=>a.handle===c.handle);
+            return <CompetitorRow key={c.id} comp={c} onDelete={deleteCompetitor} onScan={scanContent} onProfile={analyzeProfile} onDiscover={discoverSimilar} scanning={scanning} analyzing={analyzing} discovering={discovering} isSelected={isSelected} onToggleStrategy={comp => isSelected ? onRemoveAccount(comp.handle) : onAddAccount({handle:comp.handle, platform:comp.platform, profileUrl: buildProfileUrlFromHandle(comp.handle, comp.platform)})} />;
+          })}
         </>
       )}
 
@@ -1070,16 +1086,13 @@ Rispondi SOLO con JSON: {"queries":["query1","query2","query3","query4"]}`;
               <div>
                 {similarResult&&<div style={{fontSize:10,color:"#4a6a8a",fontFamily:"monospace",marginBottom:10}}>Query usate: {similarResult}</div>}
                 {similarItems.map((it,i)=>{
-                  const isSelected = selectedAccounts.some(a=>a.handle===it.handle);
                   return (
                     <CollapsibleSection key={`${it.handle}-${i}`} title={
                       <span style={{display:"flex",alignItems:"center",gap:8}}>
                         {it.handle}
-                        {onAddAccount&&(
-                          <button onClick={e=>{e.stopPropagation(); isSelected?onRemoveAccount(it.handle):onAddAccount({handle:it.handle,platform:selectedComp.platform,profileUrl:it.profileUrl||""});}} style={{background:isSelected?"#1a1035":"#0a1628",border:`1px solid ${isSelected?"#a78bfa66":"#1e3a5f"}`,color:isSelected?"#a78bfa":"#4a6a8a",borderRadius:5,padding:"2px 7px",cursor:"pointer",fontSize:10,fontFamily:"monospace",lineHeight:1.4}}>
-                            {isSelected?"✓ Selezionato":"+ Seleziona"}
-                          </button>
-                        )}
+                        <button onClick={e=>{e.stopPropagation(); handleScanSimilar(it);}} style={{background:"#0a1628",border:`1px solid #38bdf866`,color:"#38bdf8",borderRadius:5,padding:"2px 7px",cursor:"pointer",fontSize:10,fontFamily:"monospace",lineHeight:1.4}}>
+                          🔍 Scansiona
+                        </button>
                       </span>
                     } icon="👤" color="#f59e0b" defaultOpen={false}>
                       {it.profileUrl&&<a href={it.profileUrl} target="_blank" rel="noreferrer" style={{display:"inline-block",color:"#00ff9d",fontFamily:"monospace",fontSize:12,marginBottom:8,textDecoration:"none",fontWeight:700}}>{it.profileUrl}</a>}
