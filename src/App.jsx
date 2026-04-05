@@ -318,13 +318,19 @@ function HookGenerator() {
 function VideoStrategy({selectedAccounts=[], onClearAccounts}) {
   const [goal,setGoal]=useState(""); const [audience,setAudience]=useState("");
   const [platform,setPlatform]=useState("Instagram Reels"); const [loading,setLoading]=useState(false); const [result,setResult]=useState("");
+  const [rawText, setRawText] = useState(""); const [debugInfo, setDebugInfo] = useState("");
+  
   const run = async () => {
-    if(!goal) return; setLoading(true); setResult("");
-    const {text} = await callAI(`Obiettivo: ${goal}\nTarget: ${audience||"n/a"}\nPiattaforma: ${platform}`,`Sei uno stratega di content marketing. Crea:\n1. 🎬 STRUTTURA VIDEO secondo per secondo\n2. 📋 PIANO EDITORIALE 30 GIORNI\n3. 🔁 FRAMEWORK RIPETIBILE\n4. 📈 KPI E METRICHE\n5. 🤝 CTA STRATEGY\nRispondi in italiano.`);
+    if(!goal) return; setLoading(true); setResult(""); setRawText(""); setDebugInfo("");
+    setDebugInfo("Chiamata AI per Genera Strategia da form manuale...");
+    const {text, raw, error} = await callAI(`Obiettivo: ${goal}\nTarget: ${audience||"n/a"}\nPiattaforma: ${platform}`,`Sei uno stratega di content marketing. Crea:\n1. 🎬 STRUTTURA VIDEO secondo per secondo\n2. 📋 PIANO EDITORIALE 30 GIORNI\n3. 🔁 FRAMEWORK RIPETIBILE\n4. 📈 KPI E METRICHE\n5. 🤝 CTA STRATEGY\nRispondi in italiano.`);
+    if(error) setDebugInfo(prev => prev + `\n❌ ERRORE RESTITUITO: ${JSON.stringify(error)}`);
+    else setDebugInfo(prev => prev + `\n✅ Risposta Ricevuta (${text.length} caratteri)`);
+    setRawText(typeof raw === "string" ? raw : JSON.stringify(raw, null, 2) || "");
     setResult(text); setLoading(false);
   };
   const runFromCompetitors = async () => {
-    if(!selectedAccounts.length) return; setLoading(true); setResult("");
+    if(!selectedAccounts.length) return; setLoading(true); setResult(""); setRawText(""); setDebugInfo("");
     const accountList = selectedAccounts.map(a=>{
       let out = `- ${a.handle} (${a.platform})${a.profileUrl?` → ${a.profileUrl}`:""}`;
       if(a.profileAnalysis) out += `\n  [ANALISI PROFILO]: ${a.profileAnalysis.replace(/\n+/g," ").slice(0, 1000)}`;
@@ -338,11 +344,16 @@ function VideoStrategy({selectedAccounts=[], onClearAccounts}) {
     const userGoal = goal ? `\n\nOBIETTIVO DEL CLIENTE: ${goal}` : "";
     const userAudience = audience ? `\nTARGET DEL CLIENTE: ${audience}` : "";
     const userPlatform = platform ? `\nPIATTAFORMA PRINCIPALE: ${platform}` : "";
+    const finalPrompt = basePrompt + userGoal + userAudience + userPlatform;
 
-    const {text} = await callAI(
-      basePrompt + userGoal + userAudience + userPlatform,
+    setDebugInfo(`Chiamata AI per Genera Strategia dai Competitor...\nLunghezza dati input: ${finalPrompt.length} caratteri.\nCompetitor inseriti: ${selectedAccounts.length}\n\n--- INIZIO PAYLOAD INVIATO ALL'AI ---\n${finalPrompt}\n--- FINE PAYLOAD ---`);
+    const {text, raw, error} = await callAI(
+      finalPrompt,
       `Sei uno stratega di content marketing. Leggi l'analisi profilo e i titoli dei video virali estratti da questi competitor e crea una strategia differenziante per superarli e per far raggiungere al cliente il suo OBIETTIVO specifico:\n1. 🔍 ANALISI COMUNE - pattern emersi dai dati forniti\n2. 🎯 GAP DI MERCATO - angoli o macro-temi ignorati\n3. 🎬 STRATEGIA DIFFERENZIANTE - come raggiungere l'obiettivo del cliente distinguendosi dai competitor\n4. 📋 PIANO EDITORIALE 30 GIORNI - format e titoli suggeriti\n5. 🔁 FRAMEWORK RIPETIBILE\n6. ⚡ 3 AZIONI IMMEDIATE\nRispondi in italiano in modo formattato e leggibile.`
     );
+    if(error) setDebugInfo(prev => prev + `\n\n❌ ERRORE RESTITUITO DAL SERVER LLM: ${JSON.stringify(error)}`);
+    else setDebugInfo(prev => prev + `\n\n✅ Risposta Ricevuta con successo (${text.length} caratteri elaborati)`);
+    setRawText(typeof raw === "string" ? raw : JSON.stringify(raw, null, 2) || "");
     setResult(text); setLoading(false);
   };
   return (
@@ -369,6 +380,7 @@ function VideoStrategy({selectedAccounts=[], onClearAccounts}) {
       <Btn onClick={run} loading={loading} color="#a78bfa">{loading?"Costruzione…":"🎬 Crea Strategia"}</Btn>
       {loading&&<Spinner color="#a78bfa"/>}
       <ResultBox text={result} color="#a78bfa"/>
+      <DebugPanel info={debugInfo} rawText={rawText} />
     </div>
   );
 }
