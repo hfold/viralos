@@ -392,8 +392,8 @@ function buildSimilarQueries(platform, keywords="") {
     { label:"web 2", q:`tiktok profili${k}`, useSite:false },
   ];
   return [
-    { label:"site", q:`site:instagram.com instagram reel creator${k}`, useSite:true },
     { label:"web", q:`instagram reel creator${k}`, useSite:false },
+    { label:"web 2", q:`instagram profili${k}`, useSite:false },
   ];
 }
 
@@ -410,6 +410,19 @@ function extractHandleFromUrl(url, platform) {
       return parts.length ? `@${parts[0]}` : "";
     }
   } catch {}
+  return "";
+}
+
+function extractHandleFromText(text="") {
+  const m = text.match(/@([a-zA-Z0-9._]+)/);
+  return m ? `@${m[1]}` : "";
+}
+
+function buildProfileUrlFromHandle(handle, platform) {
+  const h = (handle||"").replace(/^@/, "");
+  if(!h) return "";
+  if(platform==="TikTok") return `https://www.tiktok.com/@${h}`;
+  if(platform==="Instagram") return `https://www.instagram.com/${h}/`;
   return "";
 }
 
@@ -510,6 +523,7 @@ function Competitors() {
   const [similarResult,setSimilarResult]=useState(""); const [similarComp,setSimilarComp]=useState(null);
   const [similarDebugInfo,setSimilarDebugInfo]=useState(""); const [similarRaw,setSimilarRaw]=useState("");
   const [similarItems,setSimilarItems]=useState([]);
+  const [similarVideos,setSimilarVideos]=useState([]);
   const [selectedComp,setSelectedComp]=useState(null);
   const [scanTab,setScanTab]=useState("video");
   const [profileTab,setProfileTab]=useState("overview");
@@ -753,7 +767,7 @@ function Competitors() {
 
   const runSimilarSearch = async (comp, overrideKeywords=[]) => {
     setDiscovering(comp.id); setSimilarResult(""); setSimilarComp(comp);
-    setSimilarDebugInfo(""); setSimilarRaw("");
+    setSimilarDebugInfo(""); setSimilarRaw(""); setSimilarItems([]); setSimilarVideos([]);
 
     const list = Array.isArray(overrideKeywords) ? overrideKeywords : [];
     const keywordsText = list.length ? list.join(" ") : (comp.analysisKeywords?.length ? comp.analysisKeywords.join(" ") : (comp.searchKeywords || ""));
@@ -798,7 +812,30 @@ function Competitors() {
       setSimilarDebugInfo(log.join("\n"));
     }
 
-    const handles = Array.from(new Set(allResults.map(r=>extractHandleFromUrl(r.url, comp.platform)).filter(Boolean))).slice(0, 8);
+    const isVideoUrl = (url="") => {
+      const u = url.toLowerCase();
+      if(comp.platform==="TikTok") return u.includes("tiktok.com/@") && u.includes("/video/");
+      if(comp.platform==="Instagram") return u.includes("instagram.com/reel/") || u.includes("instagram.com/p/") || u.includes("instagram.com/tv/");
+      return false;
+    };
+
+    const videos = allResults
+      .filter(r=>isVideoUrl(r.url || ""))
+      .map(r=>{
+        const handle = extractHandleFromUrl(r.url, comp.platform) || extractHandleFromText(`${r.title||""} ${r.content||""}`);
+        return {
+          title: r.title || "Video",
+          url: r.url || "",
+          desc: (r.content || r.snippet || "").slice(0, 260),
+          handle,
+          profileUrl: buildProfileUrlFromHandle(handle, comp.platform)
+        };
+      });
+    setSimilarVideos(videos);
+
+    const handles = Array.from(new Set(
+      videos.map(v=>v.handle).filter(Boolean)
+    )).slice(0, 8);
     const profileSourcesByHandle = {};
     for(const h of handles){
       const q = comp.platform==="TikTok"
@@ -988,9 +1025,9 @@ ${sources}`;
 
           {!scanning&&(
             <div style={{display:"flex",gap:6,marginBottom:12,overflowX:"auto"}}>
-              {["video","profilo","competitor"].map(tab=>(
+              {["video","profilo","simili","competitor"].map(tab=>(
                 <button key={tab} onClick={()=>setScanTab(tab)} style={{flexShrink:0,padding:"8px 12px",borderRadius:8,border:scanTab===tab?`1px solid #38bdf866`:"1px solid #0e2040",background:scanTab===tab?"#0b1b33":"#060d1a",color:scanTab===tab?"#38bdf8":"#4a6a8a",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"monospace",textTransform:"uppercase"}}>
-                  {tab==="video"?"Video":tab==="profilo"?"Analisi Profilo":"Competitor"}
+                  {tab==="video"?"Video":tab==="profilo"?"Analisi Profilo":tab==="simili"?"Video simili":"Competitor"}
                 </button>
               ))}
             </div>
@@ -1159,3 +1196,38 @@ export default function App() {
     </div>
   );
 }
+          {!scanning&&scanTab==="simili"&&(
+            (similarVideos.length>0) ? (
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(220px,1fr))",gap:10}}>
+                {similarVideos.map((it,i)=>(
+                  <div key={`${it.url}-${i}`} style={{background:"#070f1e",border:"1px solid #1e3a5f",borderRadius:10,padding:12}}>
+                    <div style={{fontSize:12,color:"#38bdf8",fontFamily:"monospace",fontWeight:700,marginBottom:6}}>
+                      {it.title}
+                    </div>
+                    {it.url && (
+                      <a href={it.url} target="_blank" rel="noreferrer" style={{fontSize:11,color:"#7a9bc0",fontFamily:"monospace",textDecoration:"none",display:"block",marginBottom:6,wordBreak:"break-all"}}>
+                        {it.url}
+                      </a>
+                    )}
+                    {it.handle && (
+                      <div style={{fontSize:11,color:"#4a6a8a",fontFamily:"monospace",marginBottom:6}}>
+                        Profilo: {it.handle}
+                      </div>
+                    )}
+                    {it.profileUrl && (
+                      <a href={it.profileUrl} target="_blank" rel="noreferrer" style={{fontSize:11,color:"#00ff9d",fontFamily:"monospace",textDecoration:"none",display:"block",marginBottom:6,wordBreak:"break-all"}}>
+                        {it.profileUrl}
+                      </a>
+                    )}
+                    {it.desc && (
+                      <div style={{fontSize:11,color:"#4a6a8a",fontFamily:"monospace",lineHeight:1.5}}>
+                        {it.desc}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div style={{color:"#2a4a6a",fontFamily:"monospace",fontSize:12}}>Nessun video simile trovato. Esegui prima la scansione o amplia le parole chiave.</div>
+            )
+          )}
