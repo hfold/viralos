@@ -355,9 +355,9 @@ function Explorer({onGoToScan}) {
       const sourcesContext = buildSourcesFromResults(allResults);
 
       // 3. Json Array Extraction
-      const exSystem = `Sei un content analyst esperto di social media. Leggi le FONTI in tempo reale e delinea i format/trend attuali scoperti per questo settore.
+      const exSystem = `Sei un content analyst esperto di social media. Leggi le FONTI in tempo reale e delinea i format/trend attuali scoperti per questo settore. Usa il markdown nella descrizione (grassetti, maiuscole, liste puntate).
 Rispondi RIGOROSAMENTE con questo JSON esatto (zero markdown fuori dal JSON):
-{"formats": [ {"title": "Nome corto del Format/Trend", "description": "Spiegazione dettagliata dell'idea e di come realizzarla o aggregarla"} ]}`;
+{"formats": [ {"title": "NOME FORMAT IN MAIUSCOLO", "overview": "Breve overview in grassetto dell'idea", "description": "Spiegazione dettagliata con liste puntate in markdown", "links":["url reale del video o profilo preso dalle fonti", "..."]} ]}`;
       const exPrompt = `Idea Iniziale Utente: ${query}\nPiattaforma: ${platform}\n\nFONTI IN TEMPO REALE:\n${sourcesContext || "Nessuna fonte trovata, genera idee probabili basate sull'idea iniziale."}`;
 
       const {text: exText} = await callLLM({ provider: ACTIVE_PROVIDER, prompt: exPrompt, system: exSystem});
@@ -412,8 +412,19 @@ Rispondi RIGOROSAMENTE con questo JSON esatto (zero markdown fuori dal JSON):
           <div style={{fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase",marginBottom:10,fontFamily:"monospace"}}>Format e Idee Trovate</div>
           {Array.isArray(ideasResult) && ideasResult.length > 0 ? (
             ideasResult.map((f, i) => (
-             <CollapsibleSection key={i} title={f.title} icon="💡" color="#00ff9d" defaultOpen={true}>
-               {f.description}
+             <CollapsibleSection key={i} title={f.title} icon="💡" color="#00ff9d" defaultOpen={false}>
+               {f.overview && <div style={{fontWeight:600, color:"#e8f4ff", marginBottom:10}}>{f.overview}</div>}
+               <div style={{color:"#a3b8cc", lineHeight:1.7}}>
+                  {renderRichText(f.description)}
+               </div>
+               {f.links && f.links.length > 0 && (
+                 <div style={{marginTop:12, paddingTop:12, borderTop:"1px dashed #1e3a5f"}}>
+                   <div style={{fontSize:10,color:"#00ff9d",letterSpacing:1,textTransform:"uppercase",marginBottom:8,fontFamily:"monospace"}}>🔗 Riferimenti Format</div>
+                   {f.links.map((lnk,idx)=>(
+                      <a key={idx} href={lnk} target="_blank" rel="noreferrer" style={{display:"block",color:"#38bdf8",fontSize:11,textDecoration:"none",marginBottom:6,fontFamily:"monospace",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>→ {lnk}</a>
+                   ))}
+                 </div>
+               )}
              </CollapsibleSection>
             ))
           ) : (
