@@ -258,7 +258,7 @@ function DebugPanel({info, rawText}) {
   if(!info&&!rawText) return null;
   return (
     <div style={{marginTop:12,borderRadius:8,overflow:"hidden",border:"1px solid #1e3a5f"}}>
-      <button onClick={()=>setOpen(!open)} style={{width:"100%",padding:"8px 12px",background:"#070f1e",border:"none",color:"#4a6a8a",fontSize:11,cursor:"pointer",textAlign:"left",fontFamily:"monospace",display:"flex",justifyContent:"space-between"}}>
+      <button onClick={()=>setOpen(!open)} style={{width:"100%",padding:"12px 14px",background:"#070f1e",border:"none",color:"#7a9bc0",fontSize:13,cursor:"pointer",textAlign:"left",fontFamily:"monospace",display:"flex",justifyContent:"space-between",fontWeight:"bold"}}>
         <span>🐛 Debug panel</span><span>{open?"▲":"▼"}</span>
       </button>
       {open&&(
@@ -280,14 +280,14 @@ function Sel({value,onChange,options,label}) {
   return (
     <div style={{marginBottom:14}}>
       <label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>{label}</label>
-      <select value={value} onChange={e=>onChange(e.target.value)} style={{width:"100%",padding:"10px 12px",background:"#070f1e",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:14,outline:"none",fontFamily:"inherit"}}>
+      <select value={value} onChange={e=>onChange(e.target.value)} style={{width:"100%",padding:"12px 14px",background:"#070f1e",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:16,outline:"none",fontFamily:"inherit"}}>
         {options.map(o=><option key={o}>{o}</option>)}
       </select>
     </div>
   );
 }
 function Textarea({value,onChange,placeholder,rows=3}) {
-  return <textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows} style={{width:"100%",padding:"11px 13px",background:"#070f1e",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:14,outline:"none",resize:"vertical",fontFamily:"inherit",lineHeight:1.6,boxSizing:"border-box",marginBottom:14}}/>;
+  return <textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows} style={{width:"100%",padding:"14px 16px",background:"#070f1e",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:16,outline:"none",resize:"vertical",fontFamily:"inherit",lineHeight:1.6,boxSizing:"border-box",marginBottom:14}}/>;
 }
 function Btn({onClick,loading,children,color="#00ff9d",small=false}) {
   return (
@@ -491,7 +491,7 @@ Rispondi in italiano. Usa SOLO i tag esatti.`;
         <div style={{marginBottom:18,border:"1px solid #a78bfa33",borderRadius:10,padding:12,background:"#0d0a1f"}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
             <div style={{fontSize:10,color:"#a78bfa",letterSpacing:2,textTransform:"uppercase",fontFamily:"monospace"}}>Account selezionati ({selectedAccounts.length})</div>
-            {onClearAccounts&&<button onClick={onClearAccounts} style={{background:"none",border:"none",color:"#2a4a6a",cursor:"pointer",fontSize:11,fontFamily:"monospace"}}>✕ Svuota</button>}
+            {onClearAccounts&&<button onClick={onClearAccounts} style={{background:"#1a1035",border:"1px solid #a78bfa55",borderRadius: 6,color:"#a78bfa",cursor:"pointer",fontSize:11,fontFamily:"monospace",padding:"8px 12px"}}>✕ Svuota</button>}
           </div>
           <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:12}}>
             {selectedAccounts.map(a=>(
@@ -516,7 +516,7 @@ Rispondi in italiano. Usa SOLO i tag esatti.`;
               <div key={item.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:"#0a0816",border:"1px solid #a78bfa33",borderRadius:8}}>
                 <div onClick={() => setResult(item.data)} style={{cursor:"pointer",flex:1,display:"flex",alignItems:"center",gap:10}}>
                   <span style={{fontSize:12,color:"#a78bfa",fontWeight:"bold"}}>{item.name}</span>
-                  <span style={{fontSize:10,color:"#4a6a8a"}}>{item.date}</span>
+                  <span style={{fontSize:10,color:"#7a9bc0"}}>{item.date}</span>
                 </div>
                 <button onClick={(e) => {
                   e.stopPropagation();
@@ -526,7 +526,7 @@ Rispondi in italiano. Usa SOLO i tag esatti.`;
                      if (result && result === item.data) setResult(null); // Clear view if we delete active
                      return n;
                   });
-                }} style={{background:"none",border:"none",color:"#ff6b35",cursor:"pointer",fontSize:13,opacity:0.7}} title="Elimina Strategia">🗑️</button>
+                }} style={{background:"none",border:"none",color:"#f59e0b",cursor:"pointer",fontSize:16,padding:"8px 12px"}} title="Elimina Strategia">🗑️</button>
               </div>
             ))}
           </div>
@@ -1175,16 +1175,16 @@ Rispondi SOLO con JSON: {"queries":["query1","query2","query3","query4"]}`;
         <div style={{fontSize:10,color:"#38bdf8",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontFamily:"monospace"}}>+ Aggiungi Competitor</div>
         <div style={{marginBottom:10}}>
           <label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Handle o URL profilo</label>
-          <input value={handle} onChange={e=>setHandle(e.target.value)} placeholder="@beardedscara o URL" onKeyDown={e=>e.key==="Enter"&&addCompetitor()} style={{width:"100%",padding:"10px 12px",background:"#04080f",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
+          <input value={handle} onChange={e=>setHandle(e.target.value)} placeholder="@beardedscara o URL" onKeyDown={e=>e.key==="Enter"&&addCompetitor()} style={{width:"100%",padding:"14px 16px",background:"#04080f",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:16,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
         </div>
         <div style={{marginBottom:10}}>
           <label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Parole chiave (opzionale)</label>
-          <input value={searchKeywords} onChange={e=>setSearchKeywords(e.target.value)} placeholder="es. beard tips viaggio germany" style={{width:"100%",padding:"10px 12px",background:"#04080f",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:14,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
+          <input value={searchKeywords} onChange={e=>setSearchKeywords(e.target.value)} placeholder="es. beard tips viaggio germany" style={{width:"100%",padding:"14px 16px",background:"#04080f",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:16,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
         </div>
         <div style={{display:"flex",gap:8,marginBottom:12}}>
           <div style={{flex:1}}>
             <label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Piattaforma</label>
-            <select value={platform} onChange={e=>setPlatform(e.target.value)} style={{width:"100%",padding:"9px 10px",background:"#04080f",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:13,outline:"none",fontFamily:"inherit"}}>
+            <select value={platform} onChange={e=>setPlatform(e.target.value)} style={{width:"100%",padding:"12px 14px",background:"#04080f",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:16,outline:"none",fontFamily:"inherit"}}>
               <option>TikTok</option><option>Instagram</option>
             </select>
           </div>
@@ -1204,9 +1204,9 @@ Rispondi SOLO con JSON: {"queries":["query1","query2","query3","query4"]}`;
           <div style={{fontSize:10,color:"#a78bfa",letterSpacing:2,textTransform:"uppercase",fontFamily:"monospace",marginBottom:8}}>Account selezionati ({selectedAccounts.length})</div>
           <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:10}}>
             {selectedAccounts.map(a=>(
-              <span key={a.handle} style={{display:"inline-flex",alignItems:"center",gap:4,fontSize:11,color:"#a78bfa",background:"#1a1035",border:"1px solid #a78bfa33",borderRadius:6,padding:"3px 8px",fontFamily:"monospace"}}>
+              <span key={a.handle} style={{display:"inline-flex",alignItems:"center",gap:8,fontSize:12,color:"#a78bfa",background:"#1a1035",border:"1px solid #a78bfa33",borderRadius:6,padding:"6px 12px",fontFamily:"monospace"}}>
                 {a.handle}
-                <button onClick={()=>onRemoveAccount(a.handle)} style={{background:"none",border:"none",color:"#4a3a6a",cursor:"pointer",fontSize:12,padding:0,lineHeight:1}}>✕</button>
+                <button onClick={()=>onRemoveAccount(a.handle)} style={{background:"none",border:"none",color:"#6a5a8a",cursor:"pointer",fontSize:16,padding:"4px",margin:"-4px -8px -4px 0",lineHeight:1}}>✕</button>
               </span>
             ))}
           </div>
