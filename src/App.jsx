@@ -385,15 +385,25 @@ function buildSearchQueries(handle, platform, keywords="") {
   ];
 }
 
-function buildSimilarQueries(platform, keywords="") {
+function buildSimilarQueries(platform, keywords="", videos=[]) {
+  const plat = platform === "TikTok" ? "tiktok" : "instagram";
+
+  // Pick 2 random videos with a title and use their titles as queries
+  const titled = (videos || []).filter(v => v.title && v.title.length > 5);
+  const picked = titled.sort(() => Math.random() - 0.5).slice(0, 2);
+
+  if (picked.length > 0) {
+    return picked.map((v, i) => ({
+      label: `video ${i + 1}: "${v.title.slice(0, 60)}"`,
+      q: `${v.title.slice(0, 80)} ${plat}`,
+    }));
+  }
+
+  // Fallback to keywords if no videos available
   const k = keywords ? ` ${keywords}` : "";
-  if(platform==="TikTok") return [
-    { label:"web", q:`tiktok creator${k}`, useSite:false },
-    { label:"web 2", q:`tiktok profili${k}`, useSite:false },
-  ];
   return [
-    { label:"web", q:`instagram creator${k}`, useSite:false },
-    { label:"web 2", q:`instagram profili${k}`, useSite:false },
+    { label:"keywords 1", q:`${plat} creator${k}` },
+    { label:"keywords 2", q:`${plat}${k}` },
   ];
 }
 
@@ -773,7 +783,7 @@ function Competitors() {
     const list = Array.isArray(overrideKeywords) ? overrideKeywords : [];
     const keywordsText = list.length ? list.join(" ") : (comp.analysisKeywords?.length ? comp.analysisKeywords.join(" ") : (comp.searchKeywords || ""));
     const keywords = keywordsText.trim().split(/\s+/).slice(0,12).join(" ");
-    const queries = buildSimilarQueries(comp.platform, keywords);
+    const queries = buildSimilarQueries(comp.platform, keywords, comp.videos || []);
     const log = [];
     const rawPayloads = [];
     let allResults = [];
