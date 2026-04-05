@@ -600,28 +600,32 @@ function Competitors({selectedAccounts=[], onAddAccount, onRemoveAccount, onGoTo
     if(!handle.trim()) return;
     const clean=handle.replace(/^@/,"").replace(/https?:\/\/(www\.)?(instagram|tiktok)\.com\//,"").replace(/\?.*/,"").replace(/\//g,"");
     const newComp = {id:Date.now().toString(),handle:"@"+clean,platform,searchKeywords:searchKeywords.trim(),addedAt:Date.now(),lastScan:null,videos:[]};
-    await persist([...competitors, newComp]);
+    const currentList = await loadCompetitors();
+    await persist([...currentList, newComp]);
     setHandle("");
     setSearchKeywords("");
     scanContent(newComp);
   };
 
   const deleteCompetitor = async (id) => {
-    await persist(competitors.filter(c=>c.id!==id));
+    const currentList = await loadCompetitors();
+    await persist(currentList.filter(c=>c.id!==id));
     if(selectedComp?.id===id){setSelectedComp(null);setProfileResult("");setScanLog([]);setRawResponse("");}
   };
 
   const deleteVideo = async (compId,key) => {
-    const updated=competitors.map(c=>c.id===compId?{...c,videos:c.videos.filter(v=>(v.url||v.title)!==key)}:c);
+    const currentList = await loadCompetitors();
+    const updated=currentList.map(c=>c.id===compId?{...c,videos:c.videos.filter(v=>(v.url||v.title)!==key)}:c);
     await persist(updated);
     setSelectedComp(prev=>prev?.id===compId?{...prev,videos:prev.videos.filter(v=>(v.url||v.title)!==key)}:prev);
   };
 
   const handleScanSimilar = async (it) => {
-    let targetComp = competitors.find(c => c.handle.toLowerCase() === it.handle.toLowerCase());
+    const currentList = await loadCompetitors();
+    let targetComp = currentList.find(c => c.handle.toLowerCase() === it.handle.toLowerCase());
     if(!targetComp) {
       targetComp = {id:Date.now().toString(),handle:it.handle,platform:(selectedComp?.platform || "TikTok"),searchKeywords:"",addedAt:Date.now(),lastScan:null,videos:[]};
-      await persist([...competitors, targetComp]);
+      await persist([...currentList, targetComp]);
     }
     scanContent(targetComp);
   };
@@ -780,7 +784,8 @@ function Competitors({selectedAccounts=[], onAddAccount, onRemoveAccount, onGoTo
       }
     }
 
-    const updated=competitors.map(c=>c.id===comp.id?{...c,lastScan:Date.now(),videos:allVideos,profileAnalysis:analysisText,analysisKeywords,profileData}:c);
+    const currentList = await loadCompetitors();
+    const updated=currentList.map(c=>c.id===comp.id?{...c,lastScan:Date.now(),videos:allVideos,profileAnalysis:analysisText,analysisKeywords,profileData}:c);
     await persist(updated);
     setSelectedComp({...comp,videos:allVideos,profileAnalysis:analysisText,analysisKeywords,profileData});
     setScanning(null);
@@ -806,9 +811,10 @@ function Competitors({selectedAccounts=[], onAddAccount, onRemoveAccount, onGoTo
     setScanLog([`Analisi manuale: ${debugInfo}`]);
     setRawResponse(text);
 
-    const existing=competitors.find(c=>c.id===comp.id)?.videos||[];
+    const currentList = await loadCompetitors();
+    const existing=currentList.find(c=>c.id===comp.id)?.videos||[];
     const merged=[...existing,...videos.filter(v=>!existing.find(e=>e.title===v.title))];
-    const updated=competitors.map(c=>c.id===comp.id?{...c,lastScan:Date.now(),videos:merged}:c);
+    const updated=currentList.map(c=>c.id===comp.id?{...c,lastScan:Date.now(),videos:merged}:c);
     await persist(updated);
     setSelectedComp({...comp,videos:merged});
     setManualLinks(""); setScanning(null);
@@ -936,7 +942,8 @@ Rispondi SOLO con JSON: {"queries":["query1","query2","query3","query4"]}`;
       const analysisKeywords = Array.isArray(analysis.keywords) ? analysis.keywords : [];
       const profileData = analysis.data || null;
       if(analysisText){
-        const updated=competitors.map(c=>c.id===comp.id?{...c,profileAnalysis:analysisText,analysisKeywords,profileData}:c);
+        const currentList = await loadCompetitors();
+        const updated=currentList.map(c=>c.id===comp.id?{...c,profileAnalysis:analysisText,analysisKeywords,profileData}:c);
         await persist(updated);
         setProfileResult(analysisText);
       }
