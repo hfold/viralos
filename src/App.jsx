@@ -353,12 +353,12 @@ function VideoStrategy({selectedAccounts=[], onClearAccounts}) {
       const userAudience = audience ? `\nTARGET DEL CLIENTE: ${audience}` : "";
       const userPlatform = platform ? `\nPIATTAFORMA PRINCIPALE: ${platform}` : "";
       finalPrompt = basePrompt + userGoal + userAudience + userPlatform;
-      systemPrompt = `Sei uno stratega di content marketing. Leggi l'analisi profilo e i titoli dei video virali estratti da questi competitor e crea una strategia differenziante ESTREMAMENTE CONCISA E SCHEMATICA per far raggiungere al cliente il suo OBIETTIVO specifico:\n1. 🔍 ANALISI COMUNE (brevi pattern emersi dai dati)\n2. 🎯 GAP DI MERCATO (2 angoli ignorati)\n3. 🎬 STRATEGIA DIFFERENZIANTE \n4. 📋 PIANO EDITORIALE (idee per 7 giorni)\n5. 🔁 FRAMEWORK RIPETIBILE\n6. ⚡ 3 AZIONI IMMEDIATE\nRispondi in italiano in modo ultra-compatto per limiti di calcolo server.`;
+      systemPrompt = `Sei uno stratega di content marketing. Leggi l'analisi profilo e i titoli dei video virali estratti da questi competitor e crea una strategia differenziante ESTREMAMENTE CONCISA E SCHEMATICA per far raggiungere al cliente il suo OBIETTIVO specifico:\n1. 🔍 ANALISI COMUNE (brevi pattern emersi dai dati)\n2. 🎯 GAP DI MERCATO (2 angoli ignorati)\n3. 🎬 STRATEGIA DIFFERENZIANTE \n4. 📋 PIANO EDITORIALE: scrivi 7 idee fornendo per ognuna un HOOK VIRALE (agressivo/curiosità) e una breve traccia visiva per i primi 3 secondi.\n5. 🔁 FRAMEWORK RIPETIBILE\n6. ⚡ 3 AZIONI IMMEDIATE\nRispondi in italiano in modo ultra-compatto per limiti di calcolo server.`;
       
       setDebugInfo(`Chiamata AI per Genera Strategia dai Competitor...\nLunghezza dati input: ${finalPrompt.length} caratteri.\nCompetitor inseriti: ${selectedAccounts.length}\n\n--- INIZIO PAYLOAD INVIATO ALL'AI ---\n${finalPrompt}\n--- FINE PAYLOAD ---`);
     } else {
       finalPrompt = `Obiettivo: ${goal}\nTarget: ${audience||"n/a"}\nPiattaforma: ${platform}`;
-      systemPrompt = `Sei uno stratega di content marketing esperto. \nFornisci una strategia MOLTO CONCISA e schematica per restare entro i limiti di tempo:\n1. 🎬 STRUTTURA VIDEO \n2. 📋 PIANO EDITORIALE 7 GIORNI (solo titoli)\n3. 🔁 FRAMEWORK RIPETIBILE\n4. 📈 KPI PRINCIPALI\n5. 🤝 CTA STRATEGY\nRispondi in italiano con un output compatto.`;
+      systemPrompt = `Sei uno stratega di content marketing esperto.\nFornisci una strategia MOLTO CONCISA e schematica per restare entro i limiti di tempo:\n1. 🎬 STRUTTURA VIDEO\n2. 📋 PIANO EDITORIALE 7 GIORNI: scrivi 7 HOOK VIRALI (aggressivi/curiosità) e una traccia visiva per i primi 3 secondi di ciascuno.\n3. 🔁 FRAMEWORK RIPETIBILE\n4. 📈 KPI PRINCIPALI\n5. 🤝 CTA STRATEGY\nRispondi in italiano con un output compatto.`;
       setDebugInfo("Chiamata AI per Genera Strategia da form manuale...");
     }
 
