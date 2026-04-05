@@ -222,10 +222,11 @@ const ResultBox = ({text,color="#00ff9d"}) => !text?null:(
 function renderRichText(text) {
   if (typeof text !== "string") return text;
   const html = text
+    .replace(/\*?\*?(Giorno \d+|Lunedì|Martedì|Mercoledì|Giovedì|Venerdì|Sabato|Domenica)\*?\*?:?/gi, '<div style="background: linear-gradient(90deg, #a78bfa44, transparent); padding: 8px 12px; margin-top: 18px; margin-bottom: 6px; border-radius: 4px; border-left: 4px solid #a78bfa; font-weight: 800; color: #fff; letter-spacing: 1px; text-transform: uppercase; font-size: 13px;">$1</div>')
+    .replace(/\*?\*?HOOK VIRALE\*?\*?:?/gi, '<span style="color: #f59e0b; background: #f59e0b22; padding: 3px 8px; border-radius: 4px; font-weight: 800; font-size: 11px; letter-spacing: 0.5px; border: 1px solid #f59e0b44; display: inline-block; margin-top: 8px; margin-bottom: 4px;">HOOK VIRALE:</span> ')
+    .replace(/\*?\*?TRACCIA VISIVA\*?\*?:?/gi, '<span style="color: #00ff9d; background: #00ff9d22; padding: 3px 8px; border-radius: 4px; font-weight: 800; font-size: 11px; letter-spacing: 0.5px; border: 1px solid #00ff9d44; display: inline-block; margin-top: 8px; margin-bottom: 4px;">TRACCIA VISIVA:</span> ')
     .replace(/\*\*(.*?)\*\*/g, '<strong style="color: #e2e8f0; font-weight: 800;">$1</strong>')
-    .replace(/(Giorno \d+:?)/gi, '<div style="background: linear-gradient(90deg, #a78bfa44, transparent); padding: 8px 12px; margin-top: 18px; margin-bottom: 6px; border-radius: 4px; border-left: 4px solid #a78bfa; font-weight: 800; color: #fff; letter-spacing: 1px; text-transform: uppercase; font-size: 13px;">$1</div>')
-    .replace(/(HOOK VIRALE(:\s*)?)/gi, '<span style="color: #f59e0b; background: #f59e0b22; padding: 3px 8px; border-radius: 4px; font-weight: 800; font-size: 11px; letter-spacing: 0.5px; border: 1px solid #f59e0b44; display: inline-block; margin-top: 8px; margin-bottom: 4px;">HOOK VIRALE:</span> ')
-    .replace(/(TRACCIA VISIVA(:\s*)?)/gi, '<span style="color: #00ff9d; background: #00ff9d22; padding: 3px 8px; border-radius: 4px; font-weight: 800; font-size: 11px; letter-spacing: 0.5px; border: 1px solid #00ff9d44; display: inline-block; margin-top: 8px; margin-bottom: 4px;">TRACCIA VISIVA:</span> ');
+    .replace(/^\*\s+/gm, '• ');
   
   return <div dangerouslySetInnerHTML={{__html: html}} />;
 }
@@ -390,7 +391,12 @@ function VideoStrategy({selectedAccounts=[], onClearAccounts}) {
       finalPrompt = basePrompt + userGoal + userAudience + userPlatform;
       systemPrompt = `Sei uno stratega di content marketing. Leggi l'analisi profilo e i titoli dei video virali estratti da questi competitor e crea una strategia differenziante ESTREMAMENTE CONCISA E SCHEMATICA per far raggiungere al cliente il suo OBIETTIVO specifico.
 Restituisci la tua strategia racchiudendo ogni sezione ESATTAMENTE nei seguenti tag XML (non usare JSON):
-<pianoEditoriale>Idee per 7 giorni con HOOK VIRALE e traccia visiva (testo formattato in markdown o liste)</pianoEditoriale>
+<pianoEditoriale>
+Usa rigorosamente e ripetutamente questo blocco testuale per tutti e 7 i giorni:
+GIORNO X:
+HOOK VIRALE: (il testo del tuo hook)
+TRACCIA VISIVA: (la traccia visiva)
+</pianoEditoriale>
 <analisiComune>Brevi pattern emersi dai dati (testo)</analisiComune>
 <gapMercato>2 angoli ignorati e idee (testo)</gapMercato>
 <strategiaDifferenziante>Strategia dettagliata (testo)</strategiaDifferenziante>
@@ -404,7 +410,12 @@ Rispondi esclusivamente in italiano. Ometti backticks, usa SOLO i tag.`;
       finalPrompt = `Obiettivo: ${goal}\nTarget: ${audience||"n/a"}\nPiattaforma: ${platform}`;
       systemPrompt = `Sei uno stratega di content marketing esperto.
 Restituisci la tua strategia racchiudendo ogni sezione ESATTAMENTE nei seguenti tag XML (non usare JSON):
-<pianoEditoriale>7 giorni: 7 HOOK VIRALI aggressivi e traccia visiva (testo in markdown o liste)</pianoEditoriale>
+<pianoEditoriale>
+Usa rigorosamente e ripetutamente questo blocco testuale per tutti e 7 i giorni:
+GIORNO X:
+HOOK VIRALE: (il testo del tuo hook)
+TRACCIA VISIVA: (la traccia visiva)
+</pianoEditoriale>
 <strutturaVideo>Struttura secondo per secondo (testo)</strutturaVideo>
 <frameworkRipetibile>Il framework ripetibile (testo)</frameworkRipetibile>
 <kpiPrincipali>Metriche chiave (testo)</kpiPrincipali>
