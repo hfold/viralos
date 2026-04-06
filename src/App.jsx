@@ -240,15 +240,15 @@ const ResultBox = ({text,color="#00ff9d"}) => !text?null:(
 function renderRichText(text) {
   if (typeof text !== "string") return text;
   const html = text
-    .replace(/(?:^|\n)##\s+(.*?)(?=\n|$)/g, '<div style="color: #38bdf8; font-weight: 800; font-size: 14.5px; margin-top: 18px; margin-bottom: 8px; letter-spacing: 0.5px; border-bottom: 1px solid #38bdf833; padding-bottom: 4px;">$1</div>')
+    .replace(/(?:^|\n)##\s+(.*?)(?=\n|$)/g, '<div style="color: #38bdf8; font-weight: 800; font-size: 14.5px; margin-top: 18px; margin-bottom: 8px; letter-spacing: 0.5px; border-bottom: 1px solid #38bdf833; padding-bottom: 4px; text-transform: uppercase;">$1</div>')
     .replace(/(?:^|\n)###\s+(.*?)(?=\n|$)/g, '<div style="color: #a78bfa; font-weight: 800; font-size: 13.5px; margin-top: 14px; margin-bottom: 6px; letter-spacing: 0.5px;">$1</div>')
     .replace(/\*?\*?(Giorno \d+|Lunedì|Martedì|Mercoledì|Giovedì|Venerdì|Sabato|Domenica)\*?\*?:?/gi, '<div style="background: linear-gradient(90deg, #a78bfa44, transparent); padding: 8px 12px; margin-top: 18px; margin-bottom: 6px; border-radius: 4px; border-left: 4px solid #a78bfa; font-weight: 800; color: #fff; letter-spacing: 1px; text-transform: uppercase; font-size: 13px;">$1</div>')
-    .replace(/\*?\*?►\s*([^*:\n]+):?\*?\*?/g, '<div style="background: linear-gradient(90deg, #38bdf844, transparent); padding: 8px 12px; margin-top: 18px; margin-bottom: 6px; border-radius: 4px; border-left: 4px solid #38bdf8; font-weight: 800; color: #fff; letter-spacing: 1px; text-transform: uppercase; font-size: 13px;">$1</div>')
-    .replace(/\*?\*?HOOK VIRALE\*?\*?:?/gi, '<span style="color: #f59e0b; background: #f59e0b22; padding: 3px 8px; border-radius: 4px; font-weight: 800; font-size: 11px; letter-spacing: 0.5px; border: 1px solid #f59e0b44; display: inline-block; margin-top: 8px; margin-bottom: 4px;">HOOK VIRALE:</span> ')
-    .replace(/\*?\*?TRACCIA VISIVA\*?\*?:?/gi, '<span style="color: #00ff9d; background: #00ff9d22; padding: 3px 8px; border-radius: 4px; font-weight: 800; font-size: 11px; letter-spacing: 0.5px; border: 1px solid #00ff9d44; display: inline-block; margin-top: 8px; margin-bottom: 4px;">TRACCIA VISIVA:</span> ')
-    .replace(/(?:^|\n)(1\.|2\.|3\.|4\.|5\.|6\.|7\.|8\.|9\.)/g, '<br/><span style="color: #f59e0b; font-weight: 800; font-size: 13px; margin-right: 4px;">$1</span>')
-    .replace(/\*\*(.*?)\*\*/g, '<strong style="color: #e2e8f0; font-weight: 800;">$1</strong>')
-    .replace(/^\*\s+/gm, '• ');
+    .replace(/\**►\s*\**([^:\n]+?)\**(?:[:\-]|\n|$)(?:\s+)?/g, '<div style="background: linear-gradient(90deg, #00ff9d22, transparent); padding: 8px 12px; margin-top: 16px; margin-bottom: 8px; border-radius: 4px; border-left: 4px solid #00ff9d; font-weight: 800; color: #00ff9d; letter-spacing: 1px; text-transform: uppercase; font-size: 13px; text-shadow: 0 0 10px #00ff9d22;">$1</div>')
+    .replace(/\*?\*?HOOK VIRALE\*?\*?:?\s*(.*?)(?=\n|$)/gi, '<div style="background: #f59e0b11; border: 1px solid #f59e0b44; border-radius: 6px; padding: 10px; margin-bottom: 8px; margin-top: 8px;"><span style="color: #f59e0b; font-weight: 800; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 4px; display: block;">🎣 HOOK VIRALE</span><span style="color: #e2e8f0; font-size: 13px;">$1</span></div>')
+    .replace(/\*?\*?TRACCIA VISIVA\*?\*?:?\s*(.*?)(?=\n|$)/gi, '<div style="background: #00ff9d11; border: 1px solid #00ff9d44; border-radius: 6px; padding: 10px; margin-bottom: 12px;"><span style="color: #00ff9d; font-weight: 800; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 4px; display: block;">👁️ TRACCIA VISIVA</span><span style="color: #a3b8cc; font-size: 13px;">$1</span></div>')
+    .replace(/(?:^|\n)(1\.|2\.|3\.|4\.|5\.|6\.|7\.|8\.|9\.)\s*(.*?)(?=\n|$)/g, '<div style="display:flex;align-items:flex-start;margin-top:10px;margin-bottom:10px;"><div style="background: #38bdf822; color: #38bdf8; width: 22px; height: 22px; text-align: center; border-radius: 50%; border: 1px solid #38bdf844; font-weight: 800; font-size: 11px; line-height: 20px; margin-right: 10px; flex-shrink: 0; display:inline-block;">$1</div><div style="flex:1;">$2</div></div>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong style="color: #fff; font-weight: 700;">$1</strong>')
+    .replace(/^\s*[\-\*]\s+/gm, '<span style="color: #00ff9d; margin-right: 6px; font-weight: bold;">•</span>');
   
   return <div dangerouslySetInnerHTML={{__html: html}} />;
 }
@@ -610,7 +610,9 @@ MOLTO IMPORTANTE: Rivolgiti all'utente sempre in seconda persona ("tu", "il tuo 
 
 Restituisci la tua strategia racchiudendo ogni sezione ESATTAMENTE nei seguenti tag XML (non usare JSON).
 ATTENZIONE: Usa estensivamente titoli markdown (## Titolo, ### Sottotitolo), elenchi numerati e grassetti.
-GRAFICA AVANZATA: Per dare una veste grafica eccezionale, falli precedere SEMPRE dal simbolo "► " i tuoi punti cardine o step (es. "► GAP DI MERCATO:", "► ANGOLO 1:"). L'app capterà il simbolo "►" e li trasformerà in bellissimi box visuali colorati.
+GRAFICA AVANZATA: Per dare una veste grafica eccezionale, falli precedere SEMPRE dal simbolo "► " i tuoi punti cardine. Usa il formato testuale ESATTO: 
+► NOME DEL PUNTO: testo descrittivo.
+NON usare grassetti o asterischi attorno al nome del punto. L'app capterà il simbolo "►" e farà rendering visuale.
 
 <pianoEditoriale>
 Usa rigorosamente e ripetutamente questo blocco testuale per tutti e 7 i giorni:
@@ -619,7 +621,7 @@ HOOK VIRALE: (il testo del tuo hook)
 TRACCIA VISIVA: (la traccia visiva)
 </pianoEditoriale>
 <analisiComune>Brevi pattern emersi dai dati (testo)</analisiComune>
-<strategiaDifferenziante>Strategia dettagliata. Iniziala SEMPRE con il punto fisso testuale "► GAP DI MERCATO:" per analizzare vuoti o trend ignorati, e aggiungici poi gli altri spunti differenzianti usando "► " come prefisso. (testo)</strategiaDifferenziante>
+<strategiaDifferenziante>Strategia dettagliata. Iniziala SEMPRE con il punto "► GAP DI MERCATO:" mettendo a nudo vuoti o trend ignorati, poi inserisci la tua soluzione pratica aggiungendo gli altri spunti differenzianti usando "► " come prefisso testuale.</strategiaDifferenziante>
 <frameworkRipetibile>Il tuo framework (testo)</frameworkRipetibile>
 <azioniImmediate>3 Azioni immediate (testo)</azioniImmediate>
 
@@ -633,7 +635,9 @@ MOLTO IMPORTANTE: Rivolgiti all'utente sempre in seconda persona ("tu", "il tuo 
 
 Restituisci la tua strategia racchiudendo ogni sezione ESATTAMENTE nei seguenti tag XML (non usare JSON).
 ATTENZIONE: Usa estensivamente titoli markdown (## Titolo, ### Sottotitolo), elenchi numerati e grassetti.
-GRAFICA AVANZATA: Falli precedere SEMPRE dal simbolo "► " i punti cardine. ESATTO: "► STEP 1:", "► METRICA CHIAVE:". L'app capterà il simbolo e li doterà di grafica vibrante.
+GRAFICA AVANZATA: Falli precedere SEMPRE dal simbolo "► " i punti cardine. Usa il formato testuale ESATTO:
+► NOME DEL PUNTO: testo descrittivo.
+NON usare grassetti o asterischi attorno al nome del punto. L'app capterà il simbolo e farà la magia.
 
 <pianoEditoriale>
 Usa rigorosamente e ripetutamente questo blocco testuale per tutti e 7 i giorni:
@@ -772,7 +776,7 @@ function ViralFormula() {
   const [videoIdea,setVideoIdea]=useState(""); const [loading,setLoading]=useState(false); const [result,setResult]=useState("");
   const run = async () => {
     if(!videoIdea) return; setLoading(true); setResult("");
-    const {text} = await callAI(`La mia Idea: ${videoIdea}`,`Sei un esperto di psicologia virale. Rivolgiti direttamente all'utente in seconda persona ("tu", "il tuo trucco", "la tua idea"). Analizza:\n1. 🧠 SCORE VIRALE /10\n2. ⚗️ INGREDIENTI MANCANTI\n3. 🔄 RIFORMULAZIONE OTTIMIZZATA\n4. 💬 5 VARIANTI TITOLO A/B\n5. 🎭 STRUTTURA EMOTIVA\n6. 📣 AMPLIFICATORI\nRispondi in italiano. Usa il simbolo "► " all'inizio dei check per attivare i render visuali.`);
+    const {text} = await callAI(`La mia Idea: ${videoIdea}`,`Sei un esperto di psicologia virale. Rivolgiti direttamente all'utente in seconda persona ("tu", "il tuo trucco", "la tua idea"). Analizza:\n1. 🧠 SCORE VIRALE /10\n2. ⚗️ INGREDIENTI MANCANTI\n3. 🔄 RIFORMULAZIONE OTTIMIZZATA\n4. 💬 5 VARIANTI TITOLO A/B\n5. 🎭 STRUTTURA EMOTIVA\n6. 📣 AMPLIFICATORI\nRispondi in italiano. Usa il simbolo testuale "► NOME DEL PUNTO:" all'inizio dei tuoi check per attivare i render grafici speciali. NON usare asterischi attorno al titolo.`);
     setResult(text); setLoading(false);
   };
   return (
