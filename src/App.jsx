@@ -598,90 +598,74 @@ function VideoStrategy({selectedAccounts=[], onClearAccounts, onGoToExplorer}) {
   
   const generateStrategy = async () => {
     if(!selectedAccounts.length && !goal) return;
-    setLoading(true); setResult(""); setRawText(""); setDebugInfo("");
+    setLoading(true); setResult(null); setRawText(""); setDebugInfo("");
 
-    let finalPrompt = "";
-    let systemPrompt = "";
+    const isCompetitor = selectedAccounts.length > 0;
 
-    if (selectedAccounts.length > 0) {
+    // Contesto base condiviso tra le due chiamate
+    let baseContext = "";
+    if (isCompetitor) {
       const accountList = selectedAccounts.map(a=>{
         let out = `- ${a.handle} (${a.platform})${a.profileUrl?` → ${a.profileUrl}`:""}`;
-        if(a.profileAnalysis) out += `\n  [ANALISI PROFILO]: ${a.profileAnalysis.replace(/\n+/g," ").slice(0, 1000)}`;
-        if(a.videos && a.videos.length > 0) {
+        if(a.profileAnalysis) out += `\n  [ANALISI PROFILO]: ${a.profileAnalysis.replace(/\n+/g," ").slice(0,1000)}`;
+        if(a.videos?.length>0) {
           const topVids = a.videos.filter(v=>v.title).sort((v1,v2)=>(v2.score||0)-(v1.score||0)).slice(0,6).map(v=>v.title).join(" | ");
-          out += `\n  [VIDEO TOP ESTRATTI]: ${topVids}`;
+          out += `\n  [VIDEO TOP]: ${topVids}`;
         }
         return out;
       }).join("\n\n");
-      const basePrompt = `Dati completi dei competitor selezionati:\n${accountList}`;
-      const userGoal = goal ? `\n\nIL TUO OBIETTIVO: ${goal}` : "";
-      const userAudience = audience ? `\nIL TUO TARGET: ${audience}` : "";
-      const userPlatform = platform ? `\nPIATTAFORMA PRINCIPALE: ${platform}` : "";
-      finalPrompt = basePrompt + userGoal + userAudience + userPlatform;
-      systemPrompt = `Sei uno stratega di content marketing. Leggi l'analisi profilo e i titoli dei video virali estratti da questi competitor e crea una strategia differenziante ESTREMAMENTE CONCISA E SCHEMATICA.
-MOLTO IMPORTANTE: Rivolgiti all'utente sempre in seconda persona ("tu", "il tuo piano", "applica questo"), mai in terza persona ("il cliente fa").
-
-Restituisci la tua strategia racchiudendo ogni sezione ESATTAMENTE nei seguenti tag XML (non usare JSON).
-ATTENZIONE: Usa estensivamente titoli markdown (## Titolo, ### Sottotitolo), elenchi numerati e grassetti.
-GRAFICA AVANZATA: Per dare una veste grafica eccezionale, falli precedere SEMPRE dal simbolo "► " i tuoi punti cardine. Usa il formato testuale ESATTO: 
-► NOME DEL PUNTO: testo descrittivo.
-NON usare grassetti o asterischi attorno al nome del punto. L'app capterà il simbolo "►" e farà rendering visuale.
-
-<pianoEditoriale>
-Usa rigorosamente e ripetutamente questo blocco testuale per tutti e 7 i giorni:
-GIORNO X:
-HOOK VIRALE: (il testo del tuo hook)
-PATTERN INTERRUPT: (suggerimento visivo shock per interruzione di pattern)
-BRIDGE: (come trattenere l'utente dopo il 3° secondo)
-BODY: (i 3 concetti o step ad alto ritmo)
-LOOP: (come chiudi il video per far ripartire subito le views o quale CTA)
-</pianoEditoriale>
-<analisiComune>Brevi pattern emersi dai dati (testo)</analisiComune>
-<strategiaDifferenziante>Strategia dettagliata. Iniziala SEMPRE con il punto "► GAP DI MERCATO:" mettendo a nudo vuoti o trend ignorati, poi inserisci la tua soluzione pratica aggiungendo gli altri spunti differenzianti usando "► " come prefisso testuale.</strategiaDifferenziante>
-
-Rispondi esclusivamente in italiano. Ometti backticks, usa SOLO i tag.`;
-      
-      setDebugInfo(`Chiamata AI per Genera Strategia dai Competitor...\nLunghezza dati input: ${finalPrompt.length} caratteri.\nCompetitor inseriti: ${selectedAccounts.length}\n\n--- INIZIO PAYLOAD INVIATO ALL'AI ---\n${finalPrompt}\n--- FINE PAYLOAD ---`);
+      baseContext = `Competitor:\n${accountList}${goal?`\n\nOBIETTIVO: ${goal}`:""}${audience?`\nTARGET: ${audience}`:""}${platform?`\nPIATTAFORMA: ${platform}`:""}`;
     } else {
-      finalPrompt = `Il Mio Obiettivo: ${goal}\nIl Mio Target: ${audience||"n/a"}\nLa Mia Piattaforma: ${platform}`;
-      systemPrompt = `Sei uno stratega di content marketing esperto. 
-MOLTO IMPORTANTE: Rivolgiti all'utente sempre in seconda persona ("tu", "il tuo trucco", "fai questo"), mai in terza persona o distante.
+      baseContext = `Obiettivo: ${goal}\nTarget: ${audience||"n/a"}\nPiattaforma: ${platform}`;
+    }
 
-Restituisci la tua strategia racchiudendo ogni sezione ESATTAMENTE nei seguenti tag XML (non usare JSON).
-ATTENZIONE: Usa estensivamente titoli markdown (## Titolo, ### Sottotitolo), elenchi numerati e grassetti.
-GRAFICA AVANZATA: Falli precedere SEMPRE dal simbolo "► " i punti cardine. Usa il formato testuale ESATTO:
-► NOME DEL PUNTO: testo descrittivo.
-NON usare grassetti o asterischi attorno al nome del punto. L'app capterà il simbolo e farà la magia.
+    const styleRules = `MOLTO IMPORTANTE: Rivolgiti sempre in seconda persona ("tu", "il tuo piano"). Usa "► NOME:" per i punti cardine (senza grassetti attorno al nome). Usa ## e ### per i titoli. Rispondi in italiano. Usa SOLO i tag XML indicati, senza backticks.`;
 
+    // ── CHIAMATA 1: Piano editoriale ──────────────────────────────
+    setDebugInfo("⏳ Fase 1/2 — Generazione piano editoriale...");
+    const sys1 = `Sei uno stratega di content marketing. ${styleRules}
+Genera SOLO il piano editoriale per 7 giorni nel tag seguente:
 <pianoEditoriale>
-Usa rigorosamente e ripetutamente questo blocco testuale per tutti e 7 i giorni:
+Usa questo schema per OGNI giorno (ripetilo 7 volte):
 GIORNO X:
-HOOK VIRALE: (il testo del tuo hook)
-PATTERN INTERRUPT: (suggerimento visivo shock per interruzione di pattern)
-BRIDGE: (come trattenere l'utente dopo il 3° secondo)
-BODY: (i 3 concetti o step ad alto ritmo)
-LOOP: (come chiudi il video per far ripartire subito le views o quale CTA)
-</pianoEditoriale>
-<strutturaVideo>Struttura secondo per secondo. Usa i box "► " (testo)</strutturaVideo>
-<kpiPrincipali>Metriche chiave e cosa controllare (testo)</kpiPrincipali>
-<ctaStrategy>Strategie di call-to-action (testo)</ctaStrategy>
+HOOK VIRALE: (testo hook)
+PATTERN INTERRUPT: (suggerimento visivo)
+BRIDGE: (come trattenere dopo il 3° secondo)
+BODY: (3 concetti o step)
+LOOP: (CTA o chiusura che rilancia le views)
+</pianoEditoriale>`;
 
-Rispondi in italiano. Usa SOLO i tag esatti.`;
-      setDebugInfo("Chiamata AI per Genera Strategia da form manuale...");
+    const {text: text1, error: err1} = await callAI(baseContext, sys1);
+    if (err1) {
+      setDebugInfo(`❌ Errore fase 1: ${JSON.stringify(err1)}`);
+      setResult({ _error: err1.message }); setLoading(false); return;
+    }
+    setDebugInfo("✅ Fase 1/2 completata — Generazione strategia...");
+
+    // ── CHIAMATA 2: Il resto della strategia ─────────────────────
+    const sys2 = isCompetitor
+      ? `Sei uno stratega di content marketing. ${styleRules}
+Genera la strategia differenziante basata sui competitor nel formato seguente:
+<analisiComune>Pattern comuni emersi dai competitor (breve)</analisiComune>
+<strategiaDifferenziante>Inizia con "► GAP DI MERCATO:" poi aggiungi altri punti con "► "</strategiaDifferenziante>`
+      : `Sei uno stratega di content marketing. ${styleRules}
+Genera la struttura video e le metriche nel formato seguente:
+<strutturaVideo>Struttura secondo per secondo con box "► "</strutturaVideo>
+<kpiPrincipali>Metriche chiave da monitorare</kpiPrincipali>
+<ctaStrategy>Strategie call-to-action</ctaStrategy>`;
+
+    const {text: text2, error: err2} = await callAI(baseContext, sys2);
+    if (err2) {
+      setDebugInfo(`❌ Errore fase 2: ${JSON.stringify(err2)}`);
+      setResult({ _error: err2.message }); setLoading(false); return;
     }
 
-    const {text, raw, error} = await callAI(finalPrompt, systemPrompt);
-
-    if (error) {
-      setDebugInfo(prev => prev + `\n\n❌ ERRORE API: ${JSON.stringify(error)}`);
-      setResult({ _error: error.message });
-      setRawText(typeof raw === "string" ? raw : JSON.stringify(raw, null, 2) || "");
-      setLoading(false);
-      return;
-    }
+    const combinedText = text1 + "\n" + text2;
+    setRawText(combinedText);
+    setDebugInfo(`✅ Entrambe le fasi completate (${combinedText.length} char totali)`);
 
     try {
-      const parsed = parseStrategyOutput(text);
+      const parsed = parseStrategyOutput(combinedText);
 
       const strategyName = selectedAccounts.length > 0 
         ? `[Competitor] ${selectedAccounts.map(a=>a.handle).join(', ')}`
