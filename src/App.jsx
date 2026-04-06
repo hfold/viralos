@@ -250,8 +250,12 @@ function renderRichText(text) {
     .replace(/(?:^|\n)###\s+(.*?)(?=\n|$)/g, '<div style="color: var(--acc-purple); font-weight: 800; font-size: 13.5px; margin-top: 14px; margin-bottom: 6px; letter-spacing: 0.5px;">$1</div>')
     .replace(/\*?\*?(Giorno \d+|Lunedì|Martedì|Mercoledì|Giovedì|Venerdì|Sabato|Domenica)\*?\*?:?/gi, '<div style="background: linear-gradient(90deg, rgba(var(--acc-purple-rgb), 0.27), transparent); padding: 8px 12px; margin-top: 18px; margin-bottom: 6px; border-radius: 4px; border-left: 4px solid var(--acc-purple); font-weight: 800; color: var(--text-main); letter-spacing: 1px; text-transform: uppercase; font-size: 13px;">$1</div>')
     .replace(/\**►\s*\**([^:\n]+?)\**(?:[:\-]|\n|$)(?:\s+)?/g, '<div style="background: linear-gradient(90deg, rgba(var(--acc-green-rgb), 0.13), transparent); padding: 8px 12px; margin-top: 16px; margin-bottom: 8px; border-radius: 4px; border-left: 4px solid var(--acc-green); font-weight: 800; color: var(--acc-green); letter-spacing: 1px; text-transform: uppercase; font-size: 13px; text-shadow: 0 0 10px rgba(var(--acc-green-rgb), 0.13);">$1</div>')
-    .replace(/\*?\*?HOOK VIRALE\*?\*?:?\s*(.*?)(?=\n|$)/gi, '<div style="background: rgba(var(--acc-orange-rgb), 0.07); border: 1px solid rgba(var(--acc-orange-rgb), 0.27); border-radius: 6px; padding: 10px; margin-bottom: 8px; margin-top: 8px;"><span style="color: var(--acc-orange); font-weight: 800; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 4px; display: block;">🎣 HOOK VIRALE</span><span style="color: var(--text-main); font-size: 13px;">$1</span></div>')
-    .replace(/\*?\*?TRACCIA VISIVA\*?\*?:?\s*(.*?)(?=\n|$)/gi, '<div style="background: rgba(var(--acc-green-rgb), 0.07); border: 1px solid rgba(var(--acc-green-rgb), 0.27); border-radius: 6px; padding: 10px; margin-bottom: 12px;"><span style="color: var(--acc-green); font-weight: 800; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 4px; display: block;">👁️ TRACCIA VISIVA</span><span style="color: var(--text-muted); font-size: 13px;">$1</span></div>')
+    .replace(/\*?\*?HOOK VIRALE\*?\*?:?\s*(.*?)(?=\n|$)/gi, '<div style="background: rgba(var(--acc-orange-rgb), 0.07); border: 1px solid rgba(var(--acc-orange-rgb), 0.27); border-radius: 6px; padding: 10px; margin-bottom: 8px; margin-top: 8px;"><span style="color: var(--acc-orange); font-weight: 800; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 4px; display: block;">🎣 HOOK VIRALE (0-3S)</span><span style="color: var(--text-main); font-size: 13px;">$1</span></div>')
+    .replace(/\*?\*?PATTERN INTERRUPT\*?\*?:?\s*(.*?)(?=\n|$)/gi, '<div style="background: rgba(var(--acc-blue-rgb), 0.07); border: 1px solid rgba(var(--acc-blue-rgb), 0.27); border-radius: 6px; padding: 10px; margin-bottom: 8px;"><span style="color: var(--acc-blue); font-weight: 800; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 4px; display: block;">💥 PATTERN INTERRUPT VISUALE</span><span style="color: var(--text-muted); font-size: 13px;">$1</span></div>')
+    .replace(/\*?\*?TRACCIA VISIVA\*?\*?:?\s*(.*?)(?=\n|$)/gi, '<div style="background: rgba(var(--acc-green-rgb), 0.07); border: 1px solid rgba(var(--acc-green-rgb), 0.27); border-radius: 6px; padding: 10px; margin-bottom: 8px;"><span style="color: var(--acc-green); font-weight: 800; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 4px; display: block;">👁️ TRACCIA VISIVA</span><span style="color: var(--text-muted); font-size: 13px;">$1</span></div>')
+    .replace(/\*?\*?BRIDGE\*?\*?:?\s*(.*?)(?=\n|$)/gi, '<div style="background: rgba(var(--acc-purple-rgb), 0.05); border: 1px solid rgba(var(--acc-purple-rgb), 0.27); border-radius: 6px; padding: 10px; margin-bottom: 8px;"><span style="color: var(--acc-purple); font-weight: 800; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 4px; display: block;">🌉 BRIDGE / RE-HOOK (3-5S)</span><span style="color: var(--text-muted); font-size: 13px;">$1</span></div>')
+    .replace(/\*?\*?BODY\*?\*?:?\s*(.*?)(?=\n|$)/gi, '<div style="background: rgba(var(--acc-green-rgb), 0.05); border: 1px solid rgba(var(--acc-green-rgb), 0.27); border-radius: 6px; padding: 10px; margin-bottom: 8px;"><span style="color: var(--acc-green); font-weight: 800; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 4px; display: block;">🥩 BODY / PAYLOAD</span><span style="color: var(--text-main); font-size: 13px;">$1</span></div>')
+    .replace(/\*?\*?LOOP\*?\*?:?\s*(.*?)(?=\n|$)/gi, '<div style="background: rgba(var(--acc-red-rgb), 0.05); border: 1px solid rgba(var(--acc-red-rgb), 0.27); border-radius: 6px; padding: 10px; margin-bottom: 12px;"><span style="color: var(--acc-red); font-weight: 800; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 4px; display: block;">♻️ LOOP / CTA (FINE)</span><span style="color: var(--text-muted); font-size: 13px;">$1</span></div>')
     .replace(/(?:^|\n)(1\.|2\.|3\.|4\.|5\.|6\.|7\.|8\.|9\.)\s*(.*?)(?=\n|$)/g, '<div style="display:flex;align-items:flex-start;margin-top:10px;margin-bottom:10px;"><div style="background: rgba(var(--acc-blue-rgb), 0.13); color: var(--acc-blue); width: 22px; height: 22px; text-align: center; border-radius: 50%; border: 1px solid rgba(var(--acc-blue-rgb), 0.27); font-weight: 800; font-size: 11px; line-height: 20px; margin-right: 10px; flex-shrink: 0; display:inline-block;">$1</div><div style="flex:1;">$2</div></div>')
     .replace(/\*\*(.*?)\*\*/g, '<strong style="color: var(--text-main); font-weight: 700;">$1</strong>')
     .replace(/^\s*[\-\*]\s+/gm, '<span style="color: var(--acc-green); margin-right: 6px; font-weight: bold;">•</span>');
@@ -566,8 +570,6 @@ function parseStrategyOutput(text) {
     pianoEditoriale: parseTag("pianoEditoriale"),
     analisiComune: parseTag("analisiComune"),
     strategiaDifferenziante: parseTag("strategiaDifferenziante"),
-    frameworkRipetibile: parseTag("frameworkRipetibile"),
-    azioniImmediate: parseTag("azioniImmediate"),
     strutturaVideo: parseTag("strutturaVideo"),
     kpiPrincipali: parseTag("kpiPrincipali"),
     ctaStrategy: parseTag("ctaStrategy")
@@ -624,12 +626,13 @@ NON usare grassetti o asterischi attorno al nome del punto. L'app capterà il si
 Usa rigorosamente e ripetutamente questo blocco testuale per tutti e 7 i giorni:
 GIORNO X:
 HOOK VIRALE: (il testo del tuo hook)
-TRACCIA VISIVA: (la traccia visiva)
+PATTERN INTERRUPT: (suggerimento visivo shock per interruzione di pattern)
+BRIDGE: (come trattenere l'utente dopo il 3° secondo)
+BODY: (i 3 concetti o step ad alto ritmo)
+LOOP: (come chiudi il video per far ripartire subito le views o quale CTA)
 </pianoEditoriale>
 <analisiComune>Brevi pattern emersi dai dati (testo)</analisiComune>
 <strategiaDifferenziante>Strategia dettagliata. Iniziala SEMPRE con il punto "► GAP DI MERCATO:" mettendo a nudo vuoti o trend ignorati, poi inserisci la tua soluzione pratica aggiungendo gli altri spunti differenzianti usando "► " come prefisso testuale.</strategiaDifferenziante>
-<frameworkRipetibile>Il tuo framework (testo)</frameworkRipetibile>
-<azioniImmediate>3 Azioni immediate (testo)</azioniImmediate>
 
 Rispondi esclusivamente in italiano. Ometti backticks, usa SOLO i tag.`;
       
@@ -649,10 +652,12 @@ NON usare grassetti o asterischi attorno al nome del punto. L'app capterà il si
 Usa rigorosamente e ripetutamente questo blocco testuale per tutti e 7 i giorni:
 GIORNO X:
 HOOK VIRALE: (il testo del tuo hook)
-TRACCIA VISIVA: (la traccia visiva)
+PATTERN INTERRUPT: (suggerimento visivo shock per interruzione di pattern)
+BRIDGE: (come trattenere l'utente dopo il 3° secondo)
+BODY: (i 3 concetti o step ad alto ritmo)
+LOOP: (come chiudi il video per far ripartire subito le views o quale CTA)
 </pianoEditoriale>
 <strutturaVideo>Struttura secondo per secondo. Usa i box "► " (testo)</strutturaVideo>
-<frameworkRipetibile>Il framework ripetibile (testo)</frameworkRipetibile>
 <kpiPrincipali>Metriche chiave e cosa controllare (testo)</kpiPrincipali>
 <ctaStrategy>Strategie di call-to-action (testo)</ctaStrategy>
 
@@ -763,10 +768,8 @@ Rispondi in italiano. Usa SOLO i tag esatti.`;
           {result.strutturaVideo && <CollapsibleSection title="🎬 STRUTTURA VIDEO" color="var(--acc-purple)" defaultOpen={false}>{safeStr(result.strutturaVideo)}</CollapsibleSection>}
           {result.analisiComune && <CollapsibleSection title="🔍 ANALISI COMUNE" color="var(--acc-purple)" defaultOpen={false}>{safeStr(result.analisiComune)}</CollapsibleSection>}
           {result.strategiaDifferenziante && <CollapsibleSection title="🎬 STRATEGIA DIFFERENZIANTE E GAP" color="var(--acc-purple)" defaultOpen={false}>{safeStr(result.strategiaDifferenziante)}</CollapsibleSection>}
-          {result.frameworkRipetibile && <CollapsibleSection title="🔁 FRAMEWORK RIPETIBILE" color="var(--acc-purple)" defaultOpen={false}>{safeStr(result.frameworkRipetibile)}</CollapsibleSection>}
           {result.kpiPrincipali && <CollapsibleSection title="📈 KPI PRINCIPALI" color="var(--acc-purple)" defaultOpen={false}>{safeStr(result.kpiPrincipali)}</CollapsibleSection>}
           {result.ctaStrategy && <CollapsibleSection title="🤝 CTA STRATEGY" color="var(--acc-purple)" defaultOpen={false}>{safeStr(result.ctaStrategy)}</CollapsibleSection>}
-          {result.azioniImmediate && <CollapsibleSection title="⚡ 3 AZIONI IMMEDIATE" color="var(--acc-purple)" defaultOpen={false}>{safeStr(result.azioniImmediate)}</CollapsibleSection>}
         </div>
       )}
       {result && typeof result === "string" && (
