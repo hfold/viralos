@@ -248,7 +248,7 @@ function renderRichText(text) {
   const html = text
     .replace(/(?:^|\n)##\s+(.*?)(?=\n|$)/g, '<div style="color: var(--acc-blue); font-weight: 800; font-size: 14.5px; margin-top: 18px; margin-bottom: 8px; letter-spacing: 0.5px; border-bottom: 1px solid rgba(var(--acc-blue-rgb), 0.2); padding-bottom: 4px; text-transform: uppercase;">$1</div>')
     .replace(/(?:^|\n)###\s+(.*?)(?=\n|$)/g, '<div style="color: var(--acc-purple); font-weight: 800; font-size: 13.5px; margin-top: 14px; margin-bottom: 6px; letter-spacing: 0.5px;">$1</div>')
-    .replace(/\*?\*?(Giorno \d+|Lunedì|Martedì|Mercoledì|Giovedì|Venerdì|Sabato|Domenica)\*?\*?:?/gi, '<div style="background: linear-gradient(90deg, rgba(var(--acc-purple-rgb), 0.27), transparent); padding: 8px 12px; margin-top: 18px; margin-bottom: 6px; border-radius: 4px; border-left: 4px solid var(--acc-purple); font-weight: 800; color: var(--text-main); letter-spacing: 1px; text-transform: uppercase; font-size: 13px;">$1</div>')
+    .replace(/\*?\*?(Giorno \d+|Video \d+|Lunedì|Martedì|Mercoledì|Giovedì|Venerdì|Sabato|Domenica)\*?\*?:?/gi, '<div style="background: linear-gradient(90deg, rgba(var(--acc-purple-rgb), 0.27), transparent); padding: 8px 12px; margin-top: 18px; margin-bottom: 6px; border-radius: 4px; border-left: 4px solid var(--acc-purple); font-weight: 800; color: var(--text-main); letter-spacing: 1px; text-transform: uppercase; font-size: 13px;">$1</div>')
     .replace(/\**►\s*\**([^:\n]+?)\**(?:[:\-]|\n|$)(?:\s+)?/g, '<div style="background: linear-gradient(90deg, rgba(var(--acc-green-rgb), 0.13), transparent); padding: 8px 12px; margin-top: 16px; margin-bottom: 8px; border-radius: 4px; border-left: 4px solid var(--acc-green); font-weight: 800; color: var(--acc-green); letter-spacing: 1px; text-transform: uppercase; font-size: 13px; text-shadow: 0 0 10px rgba(var(--acc-green-rgb), 0.13);">$1</div>')
     .replace(/\*?\*?HOOK VIRALE\*?\*?:?\s*(.*?)(?=\n|$)/gi, '<div style="background: rgba(var(--acc-orange-rgb), 0.07); border: 1px solid rgba(var(--acc-orange-rgb), 0.27); border-radius: 6px; padding: 10px; margin-bottom: 8px; margin-top: 8px;"><span style="color: var(--acc-orange); font-weight: 800; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 4px; display: block;">🎣 HOOK VIRALE (0-3S)</span><span style="color: var(--text-main); font-size: 13px;">$1</span></div>')
     .replace(/\*?\*?PATTERN INTERRUPT\*?\*?:?\s*(.*?)(?=\n|$)/gi, '<div style="background: rgba(var(--acc-blue-rgb), 0.07); border: 1px solid rgba(var(--acc-blue-rgb), 0.27); border-radius: 6px; padding: 10px; margin-bottom: 8px;"><span style="color: var(--acc-blue); font-weight: 800; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 4px; display: block;">💥 PATTERN INTERRUPT VISUALE</span><span style="color: var(--text-muted); font-size: 13px;">$1</span></div>')
@@ -527,7 +527,7 @@ Rispondi RIGOROSAMENTE con questo JSON esatto (zero markdown fuori dal JSON):
                      saveExplorerIdeas(n);
                      return n;
                   });
-                }} style={{background:"none",border:"none",color:"var(--acc-red)",cursor:"pointer",fontSize:13,padding:"4px 8px"}} title="Elimina Ricerca">🗑️</button>
+                }} style={{background:"none",border:"none",color:"var(--acc-red)",cursor:"pointer",fontSize:13,padding:"8px 8px"}} title="Elimina Ricerca">🗑️</button>
               </div>
             ))}
           </div>
@@ -623,8 +623,8 @@ GRAFICA AVANZATA: Per dare una veste grafica eccezionale, falli precedere SEMPRE
 NON usare grassetti o asterischi attorno al nome del punto. L'app capterà il simbolo "►" e farà rendering visuale.
 
 <pianoEditoriale>
-Usa rigorosamente e ripetutamente questo blocco testuale per tutti e 7 i giorni:
-GIORNO X:
+Usa rigorosamente e ripetutamente questo blocco testuale per 3 VIDEO PILASTRO della tua strategia:
+VIDEO X:
 HOOK VIRALE: (il testo del tuo hook)
 PATTERN INTERRUPT: (suggerimento visivo shock per interruzione di pattern)
 BRIDGE: (come trattenere l'utente dopo il 3° secondo)
@@ -649,8 +649,8 @@ GRAFICA AVANZATA: Falli precedere SEMPRE dal simbolo "► " i punti cardine. Usa
 NON usare grassetti o asterischi attorno al nome del punto. L'app capterà il simbolo e farà la magia.
 
 <pianoEditoriale>
-Usa rigorosamente e ripetutamente questo blocco testuale per tutti e 7 i giorni:
-GIORNO X:
+Usa rigorosamente e ripetutamente questo blocco testuale per 3 VIDEO PILASTRO della tua strategia:
+VIDEO X:
 HOOK VIRALE: (il testo del tuo hook)
 PATTERN INTERRUPT: (suggerimento visivo shock per interruzione di pattern)
 BRIDGE: (come trattenere l'utente dopo il 3° secondo)
@@ -764,7 +764,7 @@ Rispondi in italiano. Usa SOLO i tag esatti.`;
       )}
       {result && typeof result === "object" && !result._error && (
         <div style={{marginTop: 18}}>
-          {result.pianoEditoriale && <CollapsibleSection title="📋 PIANO EDITORIALE 7 GIORNI" color="var(--acc-purple)" defaultOpen={true}>{safeStr(result.pianoEditoriale)}</CollapsibleSection>}
+          {result.pianoEditoriale && <CollapsibleSection title="📋 PIANO EDITORIALE (3 VIDEO PILASTRO)" color="var(--acc-purple)" defaultOpen={true}>{safeStr(result.pianoEditoriale)}</CollapsibleSection>}
           {result.strutturaVideo && <CollapsibleSection title="🎬 STRUTTURA VIDEO" color="var(--acc-purple)" defaultOpen={false}>{safeStr(result.strutturaVideo)}</CollapsibleSection>}
           {result.analisiComune && <CollapsibleSection title="🔍 ANALISI COMUNE" color="var(--acc-purple)" defaultOpen={false}>{safeStr(result.analisiComune)}</CollapsibleSection>}
           {result.strategiaDifferenziante && <CollapsibleSection title="🎬 STRATEGIA DIFFERENZIANTE E GAP" color="var(--acc-purple)" defaultOpen={false}>{safeStr(result.strategiaDifferenziante)}</CollapsibleSection>}
