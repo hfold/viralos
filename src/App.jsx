@@ -246,6 +246,8 @@ const ResultBox = ({text,color="var(--acc-green)"}) => !text?null:(
 function renderRichText(text) {
   if (typeof text !== "string") return text;
   const html = text
+    .replace(/(?:^|\n)\s*\**►\s*\**(\d+[\.\-\)])\**\s*/g, '\n$1 ')
+    .replace(/(?:^|\n)\s*(?:###|##)\s*\**(\d+[\.\-\)])\**\s*/g, '\n$1 ')
     .replace(/(?:^|\n)##\s+(.*?)(?=\n|$)/g, '<div style="color: var(--acc-blue); font-weight: 800; font-size: 14.5px; margin-top: 18px; margin-bottom: 8px; letter-spacing: 0.5px; border-bottom: 1px solid rgba(var(--acc-blue-rgb), 0.2); padding-bottom: 4px; text-transform: uppercase;">$1</div>')
     .replace(/(?:^|\n)###\s+(.*?)(?=\n|$)/g, '<div style="color: var(--acc-purple); font-weight: 800; font-size: 13.5px; margin-top: 14px; margin-bottom: 6px; letter-spacing: 0.5px;">$1</div>')
     .replace(/\*?\*?(Giorno \d+|Video \d+|Lunedì|Martedì|Mercoledì|Giovedì|Venerdì|Sabato|Domenica)\*?\*?:?/gi, '<div style="background: linear-gradient(90deg, rgba(var(--acc-purple-rgb), 0.27), transparent); padding: 8px 12px; margin-top: 18px; margin-bottom: 6px; border-radius: 4px; border-left: 4px solid var(--acc-purple); font-weight: 800; color: var(--text-main); letter-spacing: 1px; text-transform: uppercase; font-size: 13px;">$1</div>')
