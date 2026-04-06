@@ -1488,7 +1488,7 @@ Rispondi SOLO con JSON: {"queries":["query1","query2","query3","query4"]}`;
           {!scanning&&(
             <div style={{display:"flex",gap:6,marginBottom:12,overflowX:"auto"}}>
               {["video","profilo","competitor"].map(tab=>(
-                <button key={tab} onClick={()=>setScanTab(tab)} style={{flexShrink:0,padding:"8px 12px",borderRadius:8,border:scanTab===tab?`1px solid rgba(var(--acc-blue-rgb), 0.4)`:"1px solid #0e2040",background:scanTab===tab?"#0b1b33":"#060d1a",color:scanTab===tab?"var(--acc-blue)":"var(--text-muted)",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"monospace",textTransform:"uppercase"}}>
+                <button key={tab} onClick={()=>setScanTab(tab)} style={{flexShrink:0,padding:"8px 12px",borderRadius:8,border:scanTab===tab?`1px solid rgba(var(--acc-blue-rgb), 0.4)`:"1px solid var(--border)",background:scanTab===tab?"var(--bg-input-hover)":"var(--bg-panel)",color:scanTab===tab?"var(--acc-blue)":"var(--text-muted)",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"monospace",textTransform:"uppercase"}}>
                   {tab==="video"?"Video":tab==="profilo"?"Analisi Profilo":"Competitor"}
                 </button>
               ))}
