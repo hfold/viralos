@@ -243,6 +243,7 @@ function renderRichText(text) {
     .replace(/(?:^|\n)##\s+(.*?)(?=\n|$)/g, '<div style="color: #38bdf8; font-weight: 800; font-size: 14.5px; margin-top: 18px; margin-bottom: 8px; letter-spacing: 0.5px; border-bottom: 1px solid #38bdf833; padding-bottom: 4px;">$1</div>')
     .replace(/(?:^|\n)###\s+(.*?)(?=\n|$)/g, '<div style="color: #a78bfa; font-weight: 800; font-size: 13.5px; margin-top: 14px; margin-bottom: 6px; letter-spacing: 0.5px;">$1</div>')
     .replace(/\*?\*?(Giorno \d+|Lunedì|Martedì|Mercoledì|Giovedì|Venerdì|Sabato|Domenica)\*?\*?:?/gi, '<div style="background: linear-gradient(90deg, #a78bfa44, transparent); padding: 8px 12px; margin-top: 18px; margin-bottom: 6px; border-radius: 4px; border-left: 4px solid #a78bfa; font-weight: 800; color: #fff; letter-spacing: 1px; text-transform: uppercase; font-size: 13px;">$1</div>')
+    .replace(/\*?\*?►\s*([^*:\n]+):?\*?\*?/g, '<div style="background: linear-gradient(90deg, #38bdf844, transparent); padding: 8px 12px; margin-top: 18px; margin-bottom: 6px; border-radius: 4px; border-left: 4px solid #38bdf8; font-weight: 800; color: #fff; letter-spacing: 1px; text-transform: uppercase; font-size: 13px;">$1</div>')
     .replace(/\*?\*?HOOK VIRALE\*?\*?:?/gi, '<span style="color: #f59e0b; background: #f59e0b22; padding: 3px 8px; border-radius: 4px; font-weight: 800; font-size: 11px; letter-spacing: 0.5px; border: 1px solid #f59e0b44; display: inline-block; margin-top: 8px; margin-bottom: 4px;">HOOK VIRALE:</span> ')
     .replace(/\*?\*?TRACCIA VISIVA\*?\*?:?/gi, '<span style="color: #00ff9d; background: #00ff9d22; padding: 3px 8px; border-radius: 4px; font-weight: 800; font-size: 11px; letter-spacing: 0.5px; border: 1px solid #00ff9d44; display: inline-block; margin-top: 8px; margin-bottom: 4px;">TRACCIA VISIVA:</span> ')
     .replace(/(?:^|\n)(1\.|2\.|3\.|4\.|5\.|6\.|7\.|8\.|9\.)/g, '<br/><span style="color: #f59e0b; font-weight: 800; font-size: 13px; margin-right: 4px;">$1</span>')
@@ -558,7 +559,6 @@ function parseStrategyOutput(text) {
   const parsed = {
     pianoEditoriale: parseTag("pianoEditoriale"),
     analisiComune: parseTag("analisiComune"),
-    gapMercato: parseTag("gapMercato"),
     strategiaDifferenziante: parseTag("strategiaDifferenziante"),
     frameworkRipetibile: parseTag("frameworkRipetibile"),
     azioniImmediate: parseTag("azioniImmediate"),
@@ -601,13 +601,16 @@ function VideoStrategy({selectedAccounts=[], onClearAccounts, onGoToExplorer}) {
         return out;
       }).join("\n\n");
       const basePrompt = `Dati completi dei competitor selezionati:\n${accountList}`;
-      const userGoal = goal ? `\n\nOBIETTIVO DEL CLIENTE: ${goal}` : "";
-      const userAudience = audience ? `\nTARGET DEL CLIENTE: ${audience}` : "";
+      const userGoal = goal ? `\n\nIL TUO OBIETTIVO: ${goal}` : "";
+      const userAudience = audience ? `\nIL TUO TARGET: ${audience}` : "";
       const userPlatform = platform ? `\nPIATTAFORMA PRINCIPALE: ${platform}` : "";
       finalPrompt = basePrompt + userGoal + userAudience + userPlatform;
-      systemPrompt = `Sei uno stratega di content marketing. Leggi l'analisi profilo e i titoli dei video virali estratti da questi competitor e crea una strategia differenziante ESTREMAMENTE CONCISA E SCHEMATICA per far raggiungere al cliente il suo OBIETTIVO specifico.
+      systemPrompt = `Sei uno stratega di content marketing. Leggi l'analisi profilo e i titoli dei video virali estratti da questi competitor e crea una strategia differenziante ESTREMAMENTE CONCISA E SCHEMATICA.
+MOLTO IMPORTANTE: Rivolgiti all'utente sempre in seconda persona ("tu", "il tuo piano", "applica questo"), mai in terza persona ("il cliente fa").
+
 Restituisci la tua strategia racchiudendo ogni sezione ESATTAMENTE nei seguenti tag XML (non usare JSON).
-ATTENZIONE: Usa estensivamente titoli markdown (## Titolo, ### Sottotitolo), elenchi numerati (1. 2. 3.) e grassetti per dare struttura grafica vibrante a tutte le sezioni.
+ATTENZIONE: Usa estensivamente titoli markdown (## Titolo, ### Sottotitolo), elenchi numerati e grassetti.
+GRAFICA AVANZATA: Per dare una veste grafica eccezionale, falli precedere SEMPRE dal simbolo "► " i tuoi punti cardine o step (es. "► GAP DI MERCATO:", "► ANGOLO 1:"). L'app capterà il simbolo "►" e li trasformerà in bellissimi box visuali colorati.
 
 <pianoEditoriale>
 Usa rigorosamente e ripetutamente questo blocco testuale per tutti e 7 i giorni:
@@ -616,8 +619,7 @@ HOOK VIRALE: (il testo del tuo hook)
 TRACCIA VISIVA: (la traccia visiva)
 </pianoEditoriale>
 <analisiComune>Brevi pattern emersi dai dati (testo)</analisiComune>
-<gapMercato>2 angoli ignorati e idee (testo)</gapMercato>
-<strategiaDifferenziante>Strategia dettagliata (testo)</strategiaDifferenziante>
+<strategiaDifferenziante>Strategia dettagliata. Iniziala SEMPRE con il punto fisso testuale "► GAP DI MERCATO:" per analizzare vuoti o trend ignorati, e aggiungici poi gli altri spunti differenzianti usando "► " come prefisso. (testo)</strategiaDifferenziante>
 <frameworkRipetibile>Il tuo framework (testo)</frameworkRipetibile>
 <azioniImmediate>3 Azioni immediate (testo)</azioniImmediate>
 
@@ -625,10 +627,13 @@ Rispondi esclusivamente in italiano. Ometti backticks, usa SOLO i tag.`;
       
       setDebugInfo(`Chiamata AI per Genera Strategia dai Competitor...\nLunghezza dati input: ${finalPrompt.length} caratteri.\nCompetitor inseriti: ${selectedAccounts.length}\n\n--- INIZIO PAYLOAD INVIATO ALL'AI ---\n${finalPrompt}\n--- FINE PAYLOAD ---`);
     } else {
-      finalPrompt = `Obiettivo: ${goal}\nTarget: ${audience||"n/a"}\nPiattaforma: ${platform}`;
-      systemPrompt = `Sei uno stratega di content marketing esperto.
+      finalPrompt = `Il Mio Obiettivo: ${goal}\nIl Mio Target: ${audience||"n/a"}\nLa Mia Piattaforma: ${platform}`;
+      systemPrompt = `Sei uno stratega di content marketing esperto. 
+MOLTO IMPORTANTE: Rivolgiti all'utente sempre in seconda persona ("tu", "il tuo trucco", "fai questo"), mai in terza persona o distante.
+
 Restituisci la tua strategia racchiudendo ogni sezione ESATTAMENTE nei seguenti tag XML (non usare JSON).
-ATTENZIONE: Usa estensivamente titoli markdown (## Titolo, ### Sottotitolo), elenchi numerati (1. 2. 3.) e grassetti per dare struttura grafica vibrante a tutte le sezioni.
+ATTENZIONE: Usa estensivamente titoli markdown (## Titolo, ### Sottotitolo), elenchi numerati e grassetti.
+GRAFICA AVANZATA: Falli precedere SEMPRE dal simbolo "► " i punti cardine. ESATTO: "► STEP 1:", "► METRICA CHIAVE:". L'app capterà il simbolo e li doterà di grafica vibrante.
 
 <pianoEditoriale>
 Usa rigorosamente e ripetutamente questo blocco testuale per tutti e 7 i giorni:
@@ -636,9 +641,9 @@ GIORNO X:
 HOOK VIRALE: (il testo del tuo hook)
 TRACCIA VISIVA: (la traccia visiva)
 </pianoEditoriale>
-<strutturaVideo>Struttura secondo per secondo (testo)</strutturaVideo>
+<strutturaVideo>Struttura secondo per secondo. Usa i box "► " (testo)</strutturaVideo>
 <frameworkRipetibile>Il framework ripetibile (testo)</frameworkRipetibile>
-<kpiPrincipali>Metriche chiave (testo)</kpiPrincipali>
+<kpiPrincipali>Metriche chiave e cosa controllare (testo)</kpiPrincipali>
 <ctaStrategy>Strategie di call-to-action (testo)</ctaStrategy>
 
 Rispondi in italiano. Usa SOLO i tag esatti.`;
@@ -747,8 +752,7 @@ Rispondi in italiano. Usa SOLO i tag esatti.`;
           {result.pianoEditoriale && <CollapsibleSection title="📋 PIANO EDITORIALE 7 GIORNI" color="#a78bfa" defaultOpen={true}>{safeStr(result.pianoEditoriale)}</CollapsibleSection>}
           {result.strutturaVideo && <CollapsibleSection title="🎬 STRUTTURA VIDEO" color="#a78bfa" defaultOpen={false}>{safeStr(result.strutturaVideo)}</CollapsibleSection>}
           {result.analisiComune && <CollapsibleSection title="🔍 ANALISI COMUNE" color="#a78bfa" defaultOpen={false}>{safeStr(result.analisiComune)}</CollapsibleSection>}
-          {result.gapMercato && <CollapsibleSection title="🎯 GAP DI MERCATO" color="#a78bfa" defaultOpen={false}>{safeStr(result.gapMercato)}</CollapsibleSection>}
-          {result.strategiaDifferenziante && <CollapsibleSection title="🎬 STRATEGIA DIFFERENZIANTE" color="#a78bfa" defaultOpen={false}>{safeStr(result.strategiaDifferenziante)}</CollapsibleSection>}
+          {result.strategiaDifferenziante && <CollapsibleSection title="🎬 STRATEGIA DIFFERENZIANTE E GAP" color="#a78bfa" defaultOpen={false}>{safeStr(result.strategiaDifferenziante)}</CollapsibleSection>}
           {result.frameworkRipetibile && <CollapsibleSection title="🔁 FRAMEWORK RIPETIBILE" color="#a78bfa" defaultOpen={false}>{safeStr(result.frameworkRipetibile)}</CollapsibleSection>}
           {result.kpiPrincipali && <CollapsibleSection title="📈 KPI PRINCIPALI" color="#a78bfa" defaultOpen={false}>{safeStr(result.kpiPrincipali)}</CollapsibleSection>}
           {result.ctaStrategy && <CollapsibleSection title="🤝 CTA STRATEGY" color="#a78bfa" defaultOpen={false}>{safeStr(result.ctaStrategy)}</CollapsibleSection>}
@@ -768,7 +772,7 @@ function ViralFormula() {
   const [videoIdea,setVideoIdea]=useState(""); const [loading,setLoading]=useState(false); const [result,setResult]=useState("");
   const run = async () => {
     if(!videoIdea) return; setLoading(true); setResult("");
-    const {text} = await callAI(`Idea: ${videoIdea}`,`Sei un esperto di psicologia virale. Analizza:\n1. 🧠 SCORE VIRALE /10\n2. ⚗️ INGREDIENTI MANCANTI\n3. 🔄 RIFORMULAZIONE OTTIMIZZATA\n4. 💬 5 VARIANTI TITOLO A/B\n5. 🎭 STRUTTURA EMOTIVA\n6. 📣 AMPLIFICATORI\nRispondi in italiano.`);
+    const {text} = await callAI(`La mia Idea: ${videoIdea}`,`Sei un esperto di psicologia virale. Rivolgiti direttamente all'utente in seconda persona ("tu", "il tuo trucco", "la tua idea"). Analizza:\n1. 🧠 SCORE VIRALE /10\n2. ⚗️ INGREDIENTI MANCANTI\n3. 🔄 RIFORMULAZIONE OTTIMIZZATA\n4. 💬 5 VARIANTI TITOLO A/B\n5. 🎭 STRUTTURA EMOTIVA\n6. 📣 AMPLIFICATORI\nRispondi in italiano. Usa il simbolo "► " all'inizio dei check per attivare i render visuali.`);
     setResult(text); setLoading(false);
   };
   return (
