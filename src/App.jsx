@@ -1652,8 +1652,8 @@ export default function App() {
         <div style={{display:"flex",gap:6,marginTop:16,marginBottom:18,overflowX:"auto",paddingBottom:4}}>
           {TABS.map(tab=>{
             const isActive=activeTab===tab.id; const color=TAB_COLORS[tab.id];
-            return <button key={tab.id} onClick={()=>setActiveTab(tab.id)} style={{flexShrink:0,padding:"10px 14px",borderRadius:9,border:isActive?`1px solid rgba(var(${color.slice(4,-1)}-rgb), 0.4)`:"1px solid var(--border)",background:isActive?`linear-gradient(135deg,rgba(var(${color.slice(4,-1)}-rgb), 0.1),rgba(var(${color.slice(4,-1)}-rgb), 0.05))`:"var(--bg-panel)",color:isActive?color:"var(--text-muted)",fontSize:12,fontWeight:600,cursor:"pointer",transition:"all .2s",fontFamily:"monospace",display:"flex",alignItems:"center",gap:6,whiteSpace:"nowrap"}}>
-              <span style={{fontSize:16}}>{tab.icon}</span><span>{tab.label}</span>
+            return <button key={tab.id} onClick={()=>setActiveTab(tab.id)} style={{flexShrink:0,padding:"12px 18px",borderRadius:12,border:isActive?`1px solid rgba(var(${color.slice(4,-1)}-rgb), 0.4)`:"1px solid var(--border)",background:isActive?`linear-gradient(135deg,rgba(var(${color.slice(4,-1)}-rgb), 0.1),rgba(var(${color.slice(4,-1)}-rgb), 0.05))`:"var(--bg-panel)",color:isActive?color:"var(--text-muted)",fontSize:14,fontWeight:600,cursor:"pointer",transition:"all .2s",fontFamily:"monospace",display:"flex",alignItems:"center",gap:8,whiteSpace:"nowrap"}}>
+              <span style={{fontSize:20}}>{tab.icon}</span><span>{tab.label}</span>
             </button>;
           })}
         </div>
