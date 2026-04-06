@@ -215,6 +215,12 @@ async function loadSavedStrategies() {
 async function saveStrategies(list) {
   try { window.localStorage.setItem("viralos_strategies",JSON.stringify(list)); } catch {}
 }
+function loadSavedOptimizations() {
+  try { const r=window.localStorage.getItem("viralos_optimizations"); return r?JSON.parse(r):[]; } catch { return []; }
+}
+function saveOptimizations(list) {
+  try { window.localStorage.setItem("viralos_optimizations",JSON.stringify(list)); } catch {}
+}
 async function loadExplorerCreators() {
   try { const r=window.localStorage.getItem("viralos_exp_cr"); return r?JSON.parse(r):[]; } catch { return []; }
 }
@@ -575,6 +581,7 @@ function Optimizer({initialInput="", onClearInput}) {
   const [platform,setPlatform]=useState("TikTok");
   const [loading,setLoading]=useState(false);
   const [result,setResult]=useState(null);
+  const [history,setHistory]=useState(()=>loadSavedOptimizations());
 
   useEffect(()=>{ if(initialInput){ setInput(initialInput); setResult(null); } },[initialInput]);
 
@@ -591,8 +598,28 @@ Rispondi in italiano. Sii specifico e pratico. Usa "► NOME:" per i punti cardi
     const {text,error}=await callAI(`Piattaforma: ${platform}\n\nIDEA/STRUTTURA VIDEO:\n${input}`,sys);
     if(error){setResult({_error:error.message});setLoading(false);return;}
     const pt=(tag)=>{const m=text.match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`,`i`));return m?m[1].trim():"";};
-    setResult({hook:pt("hook"),reHook:pt("reHook"),visual:pt("visual"),contenuto:pt("contenuto"),chiusura:pt("chiusura")});
+    const r={hook:pt("hook"),reHook:pt("reHook"),visual:pt("visual"),contenuto:pt("contenuto"),chiusura:pt("chiusura")};
+    setResult(r);
+    const autoName=input.trim().split(/\s+/).slice(0,5).join(" ");
+    const entry={id:Date.now(),name:autoName,date:new Date().toLocaleDateString("it-IT"),platform,input,data:r};
+    const updated=[entry,...history];
+    setHistory(updated);
+    saveOptimizations(updated);
     setLoading(false);
+  };
+
+  const loadFromHistory = (item) => {
+    setInput(item.input);
+    setPlatform(item.platform);
+    setResult(item.data);
+    setShowSave(false);
+    window.scrollTo({top:0,behavior:"smooth"});
+  };
+
+  const deleteFromHistory = (id) => {
+    const updated=history.filter(h=>h.id!==id);
+    setHistory(updated);
+    saveOptimizations(updated);
   };
 
   return (
@@ -618,6 +645,21 @@ Rispondi in italiano. Sii specifico e pratico. Usa "► NOME:" per i punti cardi
           {result.visual&&<CollapsibleSection title="👁️ PATTERN INTERRUPT VISIVO" color="var(--acc-green)" defaultOpen={false}>{result.visual}</CollapsibleSection>}
           {result.contenuto&&<CollapsibleSection title="🥩 CONTENUTO OTTIMIZZATO" color="var(--acc-green)" defaultOpen={false}>{result.contenuto}</CollapsibleSection>}
           {result.chiusura&&<CollapsibleSection title="♻️ CHIUSURA / CTA" color="var(--acc-orange)" defaultOpen={false}>{result.chiusura}</CollapsibleSection>}
+        </div>
+      )}
+      {history.length>0&&(
+        <div style={{marginTop:28}}>
+          <div style={{fontSize:10,color:"var(--text-muted)",letterSpacing:2,textTransform:"uppercase",marginBottom:10}}>Storico ottimizzazioni</div>
+          {history.map(item=>(
+            <div key={item.id} style={{display:"flex",alignItems:"center",gap:8,padding:"9px 12px",background:"var(--bg-card)",border:"1px solid var(--border)",borderRadius:8,marginBottom:6}}>
+              <div onClick={()=>loadFromHistory(item)} style={{flex:1,cursor:"pointer",minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:600,color:"var(--text-main)",fontFamily:"monospace",whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{item.name}</div>
+                <div style={{fontSize:10,color:"var(--text-muted)",marginTop:2}}>{item.platform} · {item.date}</div>
+              </div>
+              <button onClick={()=>loadFromHistory(item)} style={{background:"rgba(var(--acc-orange-rgb),0.12)",color:"var(--acc-orange)",border:"none",borderRadius:6,padding:"5px 10px",cursor:"pointer",fontSize:11,fontFamily:"monospace",whiteSpace:"nowrap"}}>Carica</button>
+              <button onClick={()=>deleteFromHistory(item.id)} style={{background:"none",border:"none",color:"var(--text-muted)",cursor:"pointer",fontSize:14,padding:"0 2px"}}>🗑️</button>
+            </div>
+          ))}
         </div>
       )}
     </div>
