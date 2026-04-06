@@ -267,10 +267,10 @@ function renderRichText(text) {
 function CollapsibleSection({title, color="var(--acc-blue)", children, defaultOpen=true, icon=""}) {
   const [open,setOpen]=useState(defaultOpen);
   return (
-    <div style={{marginBottom:6,border:`1px solid ${color}22`,borderRadius:10,overflow:"hidden"}}>
-      <div onClick={()=>setOpen(!open)} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"10px 14px",background:`${color}0d`,cursor:"pointer",color,fontFamily:"monospace",fontSize:11,fontWeight:700,textTransform:"uppercase",letterSpacing:.8,userSelect:"none"}}>
-        <span style={{display:"flex",alignItems:"center",gap:6}}>{icon&&<span>{icon}</span>}{title}</span>
-        <span style={{fontSize:10,opacity:.7,flexShrink:0,marginLeft:8}}>{open?"▲":"▼"}</span>
+    <div style={{marginBottom:10,border:`1px solid ${color}22`,borderRadius:12,overflow:"hidden"}}>
+      <div onClick={()=>setOpen(!open)} style={{width:"100%",display:"flex",alignItems:"center",justifyContent:"space-between",padding:"16px 20px",background:`${color}0d`,cursor:"pointer",color,fontFamily:"monospace",fontSize:14,fontWeight:700,textTransform:"uppercase",letterSpacing:1.2,userSelect:"none"}}>
+        <span style={{display:"flex",alignItems:"center",gap:10}}>{icon&&<span>{icon}</span>}{title}</span>
+        <span style={{fontSize:14,opacity:.7,flexShrink:0,marginLeft:10}}>{open?"▲":"▼"}</span>
       </div>
       {open&&<div style={{padding:"12px 14px",background:"var(--bg-input)",fontSize:13,color:"var(--text-muted)",lineHeight:1.75,whiteSpace:"pre-wrap"}}>{renderRichText(children)}</div>}
     </div>
