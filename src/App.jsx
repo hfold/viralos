@@ -3,13 +3,12 @@ import { useState, useEffect } from "react";
 const TABS = [
     { id:"competitors", label:"Competitor", icon:"🕵️" },
     { id:"strategy", label:"Strategia", icon:"🎬" },
-    { id:"hook", label:"Hook", icon:"🎣" },
-    { id:"viral", label:"Virale", icon:"🔥" },
+    { id:"optimizer", label:"Optimizer", icon:"⚡" },
     { id:"explorer", label:"Explorer", icon:"🌍" },
 ];
 const NICHES = ["Nutrizione","Fitness","Benessere mentale","Cucina sana","Dimagrimento","Sport & Performance"];
 const PLATFORMS = ["TikTok","Instagram Reels","YouTube Shorts","LinkedIn"];
-const TAB_COLORS = { explorer:"var(--acc-green)", hook:"var(--acc-red)", strategy:"var(--acc-purple)", viral:"var(--acc-orange)", competitors:"var(--acc-blue)" };
+const TAB_COLORS = { explorer:"var(--acc-green)", optimizer:"var(--acc-orange)", strategy:"var(--acc-purple)", competitors:"var(--acc-blue)" };
 const glow = (c="var(--acc-green)") => {
   if(c.startsWith("var(--")) {
      const v = c.slice(4, -1);
@@ -543,23 +542,84 @@ Rispondi RIGOROSAMENTE con questo JSON esatto (zero markdown fuori dal JSON):
   );
 }
 
-// ─── HOOK ─────────────────────────────────────────────────────────
-function HookGenerator() {
-  const [topic,setTopic]=useState(""); const [platform,setPlatform]=useState("TikTok");
-  const [hookType,setHookType]=useState("Curiosità"); const [loading,setLoading]=useState(false); const [result,setResult]=useState("");
-  const run = async () => {
-    if(!topic) return; setLoading(true); setResult("");
-    const {text} = await callAI(`Argomento: ${topic}\nPiattaforma: ${platform}\nTipo: ${hookType}`,`Sei un esperto di copywriting virale. Genera:\n1. 🎣 10 HOOK che fermano lo scroll\n2. 🗣️ SCRIPT APERTURA per i 3 migliori (15 sec)\n3. 🎭 VARIANTI TONO\n4. 📱 TESTO SOVRIMPRESSO\nRispondi in italiano.`);
-    setResult(text); setLoading(false);
-  };
+// ─── PIANO EDITORIALE ─────────────────────────────────────────────
+function PianoEditoriale({text, onOptimize}) {
+  const days = text.split(/(?=GIORNO \d+:)/i).map(p=>p.trim()).filter(Boolean);
+  if(!days.length) return <div style={{whiteSpace:"pre-wrap",fontSize:13,color:"var(--text-muted)"}}>{text}</div>;
   return (
     <div>
-      <div style={{marginBottom:14}}><label style={{display:"block",marginBottom:5,fontSize:10,color:"var(--text-muted)",letterSpacing:2,textTransform:"uppercase"}}>Argomento del video *</label><Textarea value={topic} onChange={setTopic} placeholder="es. 'perché stai fallendo con la dieta'..." rows={2}/></div>
+      {days.map((part,i)=>{
+        const m = part.match(/^GIORNO (\d+):/i);
+        const num = m ? m[1] : i+1;
+        const content = part.replace(/^GIORNO \d+:\s*/i,"");
+        const title = (
+          <span style={{display:"flex",alignItems:"center",gap:10,width:"100%"}}>
+            <span>Giorno {num}</span>
+            {onOptimize&&(
+              <button onClick={e=>{e.stopPropagation();onOptimize(`Giorno ${num}:\n${content}`);}}
+                style={{background:"rgba(var(--acc-orange-rgb),0.12)",border:"1px solid rgba(var(--acc-orange-rgb),0.35)",color:"var(--acc-orange)",borderRadius:5,padding:"2px 9px",cursor:"pointer",fontSize:10,fontFamily:"monospace",fontWeight:700}}>
+                ⚡ Ottimizza
+              </button>
+            )}
+          </span>
+        );
+        return <CollapsibleSection key={i} title={title} color="var(--acc-purple)" defaultOpen={i===0}>{content}</CollapsibleSection>;
+      })}
+    </div>
+  );
+}
+
+// ─── OPTIMIZER ────────────────────────────────────────────────────
+function Optimizer({initialInput="", onClearInput}) {
+  const [input,setInput]=useState(initialInput);
+  const [platform,setPlatform]=useState("TikTok");
+  const [loading,setLoading]=useState(false);
+  const [result,setResult]=useState(null);
+
+  useEffect(()=>{ if(initialInput){ setInput(initialInput); setResult(null); } },[initialInput]);
+
+  const run = async () => {
+    if(!input.trim()) return; setLoading(true); setResult(null);
+    const sys=`Sei un esperto di content creation per social media. A partire dall'idea/struttura fornita, genera versioni ottimizzate per ogni elemento del video.
+Rispondi SOLO con questi tag XML:
+<hook>3-5 varianti di hook (prime 3 secondi) con diversi angoli emotivi. Usa "► VARIANTE X:" come prefisso.</hook>
+<reHook>3 varianti di re-hook/bridge per trattenere dopo il 3° secondo</reHook>
+<visual>3-5 idee di pattern interrupt visivo e scenografia specifica</visual>
+<contenuto>3 varianti di struttura del contenuto/body ottimizzate</contenuto>
+<chiusura>3-5 varianti di chiusura/CTA che rilanciano le views o convertono</chiusura>
+Rispondi in italiano. Sii specifico e pratico. Usa "► NOME:" per i punti cardine.`;
+    const {text,error}=await callAI(`Piattaforma: ${platform}\n\nIDEA/STRUTTURA VIDEO:\n${input}`,sys);
+    if(error){setResult({_error:error.message});setLoading(false);return;}
+    const pt=(tag)=>{const m=text.match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`,`i`));return m?m[1].trim():"";};
+    setResult({hook:pt("hook"),reHook:pt("reHook"),visual:pt("visual"),contenuto:pt("contenuto"),chiusura:pt("chiusura")});
+    setLoading(false);
+  };
+
+  return (
+    <div>
+      {initialInput&&onClearInput&&(
+        <div style={{marginBottom:12,padding:"8px 12px",background:"rgba(var(--acc-orange-rgb),0.07)",border:"1px solid rgba(var(--acc-orange-rgb),0.25)",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+          <span style={{fontSize:11,color:"var(--acc-orange)",fontFamily:"monospace"}}>📋 Importato dal piano editoriale</span>
+          <button onClick={onClearInput} style={{background:"none",border:"none",color:"var(--text-muted)",cursor:"pointer",fontSize:11,fontFamily:"monospace"}}>✕ Pulisci</button>
+        </div>
+      )}
+      <div style={{marginBottom:14}}>
+        <label style={{display:"block",marginBottom:5,fontSize:10,color:"var(--text-muted)",letterSpacing:2,textTransform:"uppercase"}}>Idea o struttura video *</label>
+        <Textarea value={input} onChange={setInput} placeholder={"Descrivi il tuo video o incolla la struttura di un giorno del piano editoriale...\n\nEs: HOOK VIRALE: 'Pensavi che la colazione facesse dimagrire?'\nBODY: 3 miti sulla colazione\nLOOP: CTA per la guida gratuita"} rows={7}/>
+      </div>
       <Sel value={platform} onChange={setPlatform} options={PLATFORMS} label="Piattaforma"/>
-      <Sel value={hookType} onChange={setHookType} options={["Curiosità","Paura/Problema","Risultato shock","Contro-intuitivo","Storia personale","Sfida"]} label="Tipo di hook"/>
-      <Btn onClick={run} loading={loading} color="var(--acc-red)">{loading?"Generazione…":"🎣 Genera Hook"}</Btn>
-      {loading&&<Spinner color="var(--acc-red)"/>}
-      <ResultBox text={result} color="var(--acc-red)"/>
+      <Btn onClick={run} loading={loading} color="var(--acc-orange)">{loading?"Ottimizzazione…":"⚡ Ottimizza Video"}</Btn>
+      {loading&&<Spinner color="var(--acc-orange)"/>}
+      {result?._error&&<ResultBox text={`Errore: ${result._error}`} color="var(--acc-red)"/>}
+      {result&&!result._error&&(
+        <div style={{marginTop:18}}>
+          {result.hook&&<CollapsibleSection title="🎣 HOOK (0–3s)" color="var(--acc-red)" defaultOpen={true}>{result.hook}</CollapsibleSection>}
+          {result.reHook&&<CollapsibleSection title="🌉 RE-HOOK / BRIDGE" color="var(--acc-blue)" defaultOpen={false}>{result.reHook}</CollapsibleSection>}
+          {result.visual&&<CollapsibleSection title="👁️ PATTERN INTERRUPT VISIVO" color="var(--acc-green)" defaultOpen={false}>{result.visual}</CollapsibleSection>}
+          {result.contenuto&&<CollapsibleSection title="🥩 CONTENUTO OTTIMIZZATO" color="var(--acc-green)" defaultOpen={false}>{result.contenuto}</CollapsibleSection>}
+          {result.chiusura&&<CollapsibleSection title="♻️ CHIUSURA / CTA" color="var(--acc-orange)" defaultOpen={false}>{result.chiusura}</CollapsibleSection>}
+        </div>
+      )}
     </div>
   );
 }
@@ -586,7 +646,7 @@ function parseStrategyOutput(text) {
   return parsed;
 }
 
-function VideoStrategy({selectedAccounts=[], onClearAccounts, onGoToExplorer}) {
+function VideoStrategy({selectedAccounts=[], onClearAccounts, onGoToExplorer, onOptimizeDay}) {
   const [goal,setGoal]=useState(""); const [audience,setAudience]=useState("");
   const [platform,setPlatform]=useState("Instagram Reels"); const [loading,setLoading]=useState(false); const [result,setResult]=useState(null);
   const [rawText, setRawText] = useState(""); const [debugInfo, setDebugInfo] = useState("");
@@ -753,7 +813,7 @@ Genera la struttura video e le metriche nel formato seguente:
       {result && typeof result === "object" && !result._error && (
         <div style={{marginTop: 18}}>
           <div id="strategy-result-top" />
-          {result.pianoEditoriale && <CollapsibleSection title="📋 PIANO EDITORIALE 7 GIORNI" color="var(--acc-purple)" defaultOpen={true}>{safeStr(result.pianoEditoriale)}</CollapsibleSection>}
+          {result.pianoEditoriale && <CollapsibleSection title="📋 PIANO EDITORIALE 7 GIORNI" color="var(--acc-purple)" defaultOpen={true}><PianoEditoriale text={safeStr(result.pianoEditoriale)} onOptimize={onOptimizeDay}/></CollapsibleSection>}
           {result.strutturaVideo && <CollapsibleSection title="🎬 STRUTTURA VIDEO" color="var(--acc-purple)" defaultOpen={false}>{safeStr(result.strutturaVideo)}</CollapsibleSection>}
           {result.analisiComune && <CollapsibleSection title="🔍 ANALISI COMUNE" color="var(--acc-purple)" defaultOpen={false}>{safeStr(result.analisiComune)}</CollapsibleSection>}
           {result.strategiaDifferenziante && <CollapsibleSection title="🎬 STRATEGIA DIFFERENZIANTE E GAP" color="var(--acc-purple)" defaultOpen={false}>{safeStr(result.strategiaDifferenziante)}</CollapsibleSection>}
@@ -769,23 +829,6 @@ Genera la struttura video e le metriche nel formato seguente:
   );
 }
 
-// ─── VIRAL ────────────────────────────────────────────────────────
-function ViralFormula() {
-  const [videoIdea,setVideoIdea]=useState(""); const [loading,setLoading]=useState(false); const [result,setResult]=useState("");
-  const run = async () => {
-    if(!videoIdea) return; setLoading(true); setResult("");
-    const {text} = await callAI(`La mia Idea: ${videoIdea}`,`Sei un esperto di psicologia virale. Rivolgiti direttamente all'utente in seconda persona ("tu", "il tuo trucco", "la tua idea"). Analizza:\n1. 🧠 SCORE VIRALE /10\n2. ⚗️ INGREDIENTI MANCANTI\n3. 🔄 RIFORMULAZIONE OTTIMIZZATA\n4. 💬 5 VARIANTI TITOLO A/B\n5. 🎭 STRUTTURA EMOTIVA\n6. 📣 AMPLIFICATORI\nRispondi in italiano. Usa il simbolo testuale "► NOME DEL PUNTO:" all'inizio dei tuoi check per attivare i render grafici speciali. NON usare asterischi attorno al titolo.`);
-    setResult(text); setLoading(false);
-  };
-  return (
-    <div>
-      <div style={{marginBottom:14}}><label style={{display:"block",marginBottom:5,fontSize:10,color:"var(--text-muted)",letterSpacing:2,textTransform:"uppercase"}}>Descrivi la tua idea video *</label><Textarea value={videoIdea} onChange={setVideoIdea} placeholder="es. '5 alimenti che pensavi sani ma che fanno ingrassare'..." rows={4}/></div>
-      <Btn onClick={run} loading={loading} color="var(--acc-orange)">{loading?"Analisi…":"🔥 Analizza Potenziale Virale"}</Btn>
-      {loading&&<Spinner color="var(--acc-orange)"/>}
-      <ResultBox text={result} color="var(--acc-orange)"/>
-    </div>
-  );
-}
 
 // ─── COMPETITORS ──────────────────────────────────────────────────
 function ScoreBadge({score}) {
@@ -1588,6 +1631,7 @@ export default function App() {
   const [accountsLoaded,setAccountsLoaded]=useState(false);
   const [pendingScan, setPendingScan]=useState(null);
   const [explorerRequestedMode, setExplorerRequestedMode] = useState(null);
+  const [optimizerInput, setOptimizerInput] = useState("");
   
   const handleGoToExplorer = (mode) => {
      setExplorerRequestedMode(mode);
@@ -1652,9 +1696,8 @@ export default function App() {
             <h2 style={{margin:0,fontSize:17,color:activeColor,fontFamily:"monospace",letterSpacing:.5}}>{TABS.find(t=>t.id===activeTab)?.label}</h2>
           </div>
           <div style={{display:activeTab==="competitors"?"block":"none"}}><Competitors selectedAccounts={selectedAccounts} onAddAccount={addAccount} onRemoveAccount={removeAccount} onGoToStrategy={()=>setActiveTab("strategy")} onGoToExplorer={handleGoToExplorer} pendingScan={pendingScan} clearPendingScan={()=>setPendingScan(null)}/></div>
-          <div style={{display:activeTab==="strategy"?"block":"none"}}><VideoStrategy selectedAccounts={selectedAccounts} onClearAccounts={clearAccounts} onGoToExplorer={handleGoToExplorer}/></div>
-          <div style={{display:activeTab==="hook"?"block":"none"}}><HookGenerator/></div>
-          <div style={{display:activeTab==="viral"?"block":"none"}}><ViralFormula/></div>
+          <div style={{display:activeTab==="strategy"?"block":"none"}}><VideoStrategy selectedAccounts={selectedAccounts} onClearAccounts={clearAccounts} onGoToExplorer={handleGoToExplorer} onOptimizeDay={day=>{setOptimizerInput(day);setActiveTab("optimizer");}}/></div>
+          <div style={{display:activeTab==="optimizer"?"block":"none"}}><Optimizer initialInput={optimizerInput} onClearInput={()=>setOptimizerInput("")}/></div>
           <div style={{display:activeTab==="explorer"?"block":"none"}}><Explorer requestedMode={explorerRequestedMode} clearRequestedMode={()=>setExplorerRequestedMode(null)} onGoToScan={(h, p)=> { setPendingScan({handle:h, platform:p}); setActiveTab("competitors"); }}/></div>
         </div>
         <p style={{textAlign:"center",color:"var(--border)",fontSize:10,marginTop:16,fontFamily:"monospace"}}>Powered by Gemini AI · Dati salvati in modo persistente</p>
