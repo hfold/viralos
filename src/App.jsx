@@ -685,13 +685,12 @@ Genera la struttura video e le metriche nel formato seguente:
         return next;
       });
 
-      setDebugInfo(prev => prev + `\n\n✅ Estrazione Tag XML completata con successo (${text.length} char)`);
+      setDebugInfo(prev => prev + `\n\n✅ Estrazione Tag XML completata (${combinedText.length} char)`);
     } catch(err) {
-      setDebugInfo(prev => prev + `\n\n❌ ERRORE PARSING TAG XML: ${err.message}\nTesto:\n${text}`);
-      setResult({ _error: `Impossibile analizzare i tag testuali dall'AI.\nProva a generarlo di nuovo.\nTesto originale:\n${text.slice(0,500)}...` });
+      setDebugInfo(prev => prev + `\n\n❌ ERRORE PARSING TAG XML: ${err.message}\nTesto:\n${combinedText.slice(0,500)}`);
+      setResult({ _error: `Impossibile analizzare i tag testuali dall'AI.\nProva a generarlo di nuovo.\nTesto originale:\n${combinedText.slice(0,500)}...` });
     }
 
-    setRawText(typeof raw === "string" ? raw : JSON.stringify(raw, null, 2) || "");
     setLoading(false);
   };
   const safeStr = (val) => typeof val === "string" ? val : JSON.stringify(val, null, 2);
