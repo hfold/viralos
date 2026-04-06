@@ -444,6 +444,7 @@ Rispondi RIGOROSAMENTE con questo JSON esatto (zero markdown fuori dal JSON):
 
       {!loading && searched && mode === "creator" && (
         <div style={{marginTop: 20}}>
+          <div id="explorer-creator-top" />
           <div style={{fontSize:10,color:"var(--text-muted)",letterSpacing:2,textTransform:"uppercase",marginBottom:10,fontFamily:"monospace"}}>Risultati ({creators.length})</div>
           {creators.length > 0 ? creators.map((it, i) => (
              <CollapsibleSection key={`${it.handle}-${i}`} title={
@@ -463,6 +464,7 @@ Rispondi RIGOROSAMENTE con questo JSON esatto (zero markdown fuori dal JSON):
 
       {!loading && searched && mode === "ideas" && (
         <div style={{marginTop: 20}}>
+          <div id="explorer-ideas-top" />
           <div style={{fontSize:10,color:"var(--text-muted)",letterSpacing:2,textTransform:"uppercase",marginBottom:10,fontFamily:"monospace"}}>Format e Idee Trovate</div>
           {Array.isArray(ideasResult) && ideasResult.length > 0 ? (
             ideasResult.map((f, i) => (
@@ -493,7 +495,7 @@ Rispondi RIGOROSAMENTE con questo JSON esatto (zero markdown fuori dal JSON):
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
             {historyCreators.map(item => (
               <div key={item.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg-input-hover)",border:"1px solid rgba(var(--acc-green-rgb), 0.2)",borderRadius:8}}>
-                <div onClick={() => { setCreators(item.data); setSearched(true); setTimeout(()=>window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'}), 150); }} style={{cursor:"pointer",flex:1,display:"flex",alignItems:"center",gap:10}}>
+                <div onClick={() => { setCreators(item.data); setSearched(true); setTimeout(()=>document.getElementById('explorer-creator-top')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150); }} style={{cursor:"pointer",flex:1,display:"flex",alignItems:"center",gap:10}}>
                   <span style={{fontSize:12,color:"var(--acc-green)",fontWeight:"bold"}}>{item.name}</span>
                   <span style={{fontSize:10,color:"var(--text-muted)"}}>{item.date}</span>
                 </div>
@@ -517,7 +519,7 @@ Rispondi RIGOROSAMENTE con questo JSON esatto (zero markdown fuori dal JSON):
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
             {historyIdeas.map(item => (
               <div key={item.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg-input-hover)",border:"1px solid rgba(var(--acc-green-rgb), 0.2)",borderRadius:8}}>
-                <div onClick={() => { setIdeasResult(item.data); setSearched(true); setTimeout(()=>window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'}), 150); }} style={{cursor:"pointer",flex:1,display:"flex",alignItems:"center",gap:10}}>
+                <div onClick={() => { setIdeasResult(item.data); setSearched(true); setTimeout(()=>document.getElementById('explorer-ideas-top')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150); }} style={{cursor:"pointer",flex:1,display:"flex",alignItems:"center",gap:10}}>
                   <span style={{fontSize:12,color:"var(--acc-green)",fontWeight:"bold"}}>{item.name}</span>
                   <span style={{fontSize:10,color:"var(--text-muted)"}}>{item.date}</span>
                 </div>
@@ -741,7 +743,7 @@ Rispondi in italiano. Usa SOLO i tag esatti.`;
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
             {history.map(item => (
               <div key={item.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg-input-hover)",border:"1px solid rgba(var(--acc-purple-rgb), 0.2)",borderRadius:8}}>
-                <div onClick={() => { setResult(item.data); setTimeout(()=>window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'}), 150); }} style={{cursor:"pointer",flex:1,display:"flex",alignItems:"center",gap:10}}>
+                <div onClick={() => { setResult(item.data); setTimeout(()=>document.getElementById('strategy-result-top')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150); }} style={{cursor:"pointer",flex:1,display:"flex",alignItems:"center",gap:10}}>
                   <span style={{fontSize:12,color:"var(--acc-purple)",fontWeight:"bold"}}>{item.name}</span>
                   <span style={{fontSize:10,color:"var(--text-muted)"}}>{item.date}</span>
                 </div>
@@ -765,6 +767,7 @@ Rispondi in italiano. Usa SOLO i tag esatti.`;
       )}
       {result && typeof result === "object" && !result._error && (
         <div style={{marginTop: 18}}>
+          <div id="strategy-result-top" />
           {result.pianoEditoriale && <CollapsibleSection title="📋 PIANO EDITORIALE 7 GIORNI" color="var(--acc-purple)" defaultOpen={true}>{safeStr(result.pianoEditoriale)}</CollapsibleSection>}
           {result.strutturaVideo && <CollapsibleSection title="🎬 STRUTTURA VIDEO" color="var(--acc-purple)" defaultOpen={false}>{safeStr(result.strutturaVideo)}</CollapsibleSection>}
           {result.analisiComune && <CollapsibleSection title="🔍 ANALISI COMUNE" color="var(--acc-purple)" defaultOpen={false}>{safeStr(result.analisiComune)}</CollapsibleSection>}
@@ -1079,7 +1082,7 @@ function Competitors({selectedAccounts=[], onAddAccount, onRemoveAccount, onGoTo
     setRawResponse("");
     setSimilarItems(comp.similarItems || []);
     setSimilarResult(comp.similarResult || "");
-    setTimeout(() => window.scrollTo({top: document.body.scrollHeight, behavior: 'smooth'}), 150);
+    setTimeout(() => document.getElementById('competitor-result-top')?.scrollIntoView({ behavior: 'smooth', block: 'center' }), 150);
   };
 
   // Multi-strategy scan
@@ -1476,6 +1479,7 @@ Rispondi SOLO con JSON: {"queries":["query1","query2","query3","query4"]}`;
       {/* Results */}
       {selectedComp&&(
         <div style={{marginTop:22}}>
+          <div id="competitor-result-top" />
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
             <div style={{fontSize:13,color:"var(--acc-blue)",fontFamily:"monospace",fontWeight:600}}>🎬 {selectedComp.handle}</div>
             <div style={{fontSize:10,color:"var(--text-muted)",fontFamily:"monospace"}}>🟢≥8 🟡≥6 🔴&lt;6</div>
