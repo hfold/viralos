@@ -258,7 +258,8 @@ function renderRichText(text) {
     .replace(/\*?\*?LOOP\*?\*?:?\s*(.*?)(?=\n|$)/gi, '<div style="background: rgba(var(--acc-red-rgb), 0.05); border: 1px solid rgba(var(--acc-red-rgb), 0.27); border-radius: 6px; padding: 10px; margin-bottom: 12px;"><span style="color: var(--acc-red); font-weight: 800; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 4px; display: block;">♻️ LOOP / CTA (FINE)</span><span style="color: var(--text-muted); font-size: 13px;">$1</span></div>')
     .replace(/(?:^|\n)(1\.|2\.|3\.|4\.|5\.|6\.|7\.|8\.|9\.)\s*(.*?)(?=\n|$)/g, '<div style="display:flex;align-items:flex-start;margin-top:10px;margin-bottom:10px;"><div style="background: rgba(var(--acc-blue-rgb), 0.13); color: var(--acc-blue); width: 22px; height: 22px; text-align: center; border-radius: 50%; border: 1px solid rgba(var(--acc-blue-rgb), 0.27); font-weight: 800; font-size: 11px; line-height: 20px; margin-right: 10px; flex-shrink: 0; display:inline-block;">$1</div><div style="flex:1;">$2</div></div>')
     .replace(/\*\*(.*?)\*\*/g, '<strong style="color: var(--text-main); font-weight: 700;">$1</strong>')
-    .replace(/^\s*[\-\*]\s+/gm, '<span style="color: var(--acc-green); margin-right: 6px; font-weight: bold;">•</span>');
+    .replace(/^\s*[\-\*]\s+/gm, '<span style="color: var(--acc-green); margin-right: 6px; font-weight: bold;">•</span>')
+    .replace(/\*\*/g, '');
   
   return <div dangerouslySetInnerHTML={{__html: html}} />;
 }
@@ -623,8 +624,8 @@ GRAFICA AVANZATA: Per dare una veste grafica eccezionale, falli precedere SEMPRE
 NON usare grassetti o asterischi attorno al nome del punto. L'app capterà il simbolo "►" e farà rendering visuale.
 
 <pianoEditoriale>
-Usa rigorosamente e ripetutamente questo blocco testuale per 3 VIDEO PILASTRO della tua strategia:
-VIDEO X:
+Usa rigorosamente e ripetutamente questo blocco testuale per tutti e 7 i giorni:
+GIORNO X:
 HOOK VIRALE: (il testo del tuo hook)
 PATTERN INTERRUPT: (suggerimento visivo shock per interruzione di pattern)
 BRIDGE: (come trattenere l'utente dopo il 3° secondo)
@@ -649,8 +650,8 @@ GRAFICA AVANZATA: Falli precedere SEMPRE dal simbolo "► " i punti cardine. Usa
 NON usare grassetti o asterischi attorno al nome del punto. L'app capterà il simbolo e farà la magia.
 
 <pianoEditoriale>
-Usa rigorosamente e ripetutamente questo blocco testuale per 3 VIDEO PILASTRO della tua strategia:
-VIDEO X:
+Usa rigorosamente e ripetutamente questo blocco testuale per tutti e 7 i giorni:
+GIORNO X:
 HOOK VIRALE: (il testo del tuo hook)
 PATTERN INTERRUPT: (suggerimento visivo shock per interruzione di pattern)
 BRIDGE: (come trattenere l'utente dopo il 3° secondo)
@@ -764,7 +765,7 @@ Rispondi in italiano. Usa SOLO i tag esatti.`;
       )}
       {result && typeof result === "object" && !result._error && (
         <div style={{marginTop: 18}}>
-          {result.pianoEditoriale && <CollapsibleSection title="📋 PIANO EDITORIALE (3 VIDEO PILASTRO)" color="var(--acc-purple)" defaultOpen={true}>{safeStr(result.pianoEditoriale)}</CollapsibleSection>}
+          {result.pianoEditoriale && <CollapsibleSection title="📋 PIANO EDITORIALE 7 GIORNI" color="var(--acc-purple)" defaultOpen={true}>{safeStr(result.pianoEditoriale)}</CollapsibleSection>}
           {result.strutturaVideo && <CollapsibleSection title="🎬 STRUTTURA VIDEO" color="var(--acc-purple)" defaultOpen={false}>{safeStr(result.strutturaVideo)}</CollapsibleSection>}
           {result.analisiComune && <CollapsibleSection title="🔍 ANALISI COMUNE" color="var(--acc-purple)" defaultOpen={false}>{safeStr(result.analisiComune)}</CollapsibleSection>}
           {result.strategiaDifferenziante && <CollapsibleSection title="🎬 STRATEGIA DIFFERENZIANTE E GAP" color="var(--acc-purple)" defaultOpen={false}>{safeStr(result.strategiaDifferenziante)}</CollapsibleSection>}
