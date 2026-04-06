@@ -9,8 +9,14 @@ const TABS = [
 ];
 const NICHES = ["Nutrizione","Fitness","Benessere mentale","Cucina sana","Dimagrimento","Sport & Performance"];
 const PLATFORMS = ["TikTok","Instagram Reels","YouTube Shorts","LinkedIn"];
-const TAB_COLORS = { explorer:"#00ff9d", hook:"#ff6b35", strategy:"#a78bfa", viral:"#f59e0b", competitors:"#38bdf8" };
-const glow = (c="#00ff9d") => ({ boxShadow:`0 0 20px ${c}22,0 0 40px ${c}11`, border:`1px solid ${c}44` });
+const TAB_COLORS = { explorer:"var(--acc-green)", hook:"var(--acc-red)", strategy:"var(--acc-purple)", viral:"var(--acc-orange)", competitors:"var(--acc-blue)" };
+const glow = (c="var(--acc-green)") => {
+  if(c.startsWith("var(--")) {
+     const v = c.slice(4, -1);
+     return { boxShadow:`0 0 20px rgba(var(${v}-rgb), 0.15), 0 0 40px rgba(var(${v}-rgb), 0.08)`, border:`1px solid rgba(var(${v}-rgb), 0.25)` };
+  }
+  return { boxShadow:`0 0 20px ${c}22,0 0 40px ${c}11`, border:`1px solid ${c}44` };
+};
 
 // ─── LLM API (Netlify Function) ───────────────────────────────────────────────────
 
@@ -224,15 +230,15 @@ async function saveExplorerIdeas(list) {
 }
 
 // ─── SHARED UI ────────────────────────────────────────────────────
-const Spinner = ({color="#00ff9d",label="Analisi in corso…"}) => (
+const Spinner = ({color="var(--acc-green)",label="Analisi in corso…"}) => (
   <div style={{display:"flex",alignItems:"center",gap:10,color,fontSize:13,marginTop:14}}>
     <div style={{width:14,height:14,border:`2px solid ${color}44`,borderTop:`2px solid ${color}`,borderRadius:"50%",animation:"spin .8s linear infinite"}}/>
     {label}
   </div>
 );
 
-const ResultBox = ({text,color="#00ff9d"}) => !text?null:(
-  <div style={{marginTop:18,padding:"16px",background:"linear-gradient(135deg,#0a1628,#0d1f3c)",...glow(color),borderRadius:12,whiteSpace:"pre-wrap",lineHeight:1.7,fontSize:13,color:"#c8d8f0",fontFamily:"'Courier New',monospace",maxHeight:380,overflowY:"auto"}}>
+const ResultBox = ({text,color="var(--acc-green)"}) => !text?null:(
+  <div style={{marginTop:18,padding:"16px",background:"linear-gradient(135deg,var(--bg-input-hover),var(--bg-panel))",...glow(color),borderRadius:12,whiteSpace:"pre-wrap",lineHeight:1.7,fontSize:13,color:"var(--text-main)",fontFamily:"'Courier New',monospace",maxHeight:380,overflowY:"auto"}}>
     {text}
   </div>
 );
@@ -240,20 +246,20 @@ const ResultBox = ({text,color="#00ff9d"}) => !text?null:(
 function renderRichText(text) {
   if (typeof text !== "string") return text;
   const html = text
-    .replace(/(?:^|\n)##\s+(.*?)(?=\n|$)/g, '<div style="color: #38bdf8; font-weight: 800; font-size: 14.5px; margin-top: 18px; margin-bottom: 8px; letter-spacing: 0.5px; border-bottom: 1px solid #38bdf833; padding-bottom: 4px; text-transform: uppercase;">$1</div>')
-    .replace(/(?:^|\n)###\s+(.*?)(?=\n|$)/g, '<div style="color: #a78bfa; font-weight: 800; font-size: 13.5px; margin-top: 14px; margin-bottom: 6px; letter-spacing: 0.5px;">$1</div>')
-    .replace(/\*?\*?(Giorno \d+|Lunedì|Martedì|Mercoledì|Giovedì|Venerdì|Sabato|Domenica)\*?\*?:?/gi, '<div style="background: linear-gradient(90deg, #a78bfa44, transparent); padding: 8px 12px; margin-top: 18px; margin-bottom: 6px; border-radius: 4px; border-left: 4px solid #a78bfa; font-weight: 800; color: #fff; letter-spacing: 1px; text-transform: uppercase; font-size: 13px;">$1</div>')
-    .replace(/\**►\s*\**([^:\n]+?)\**(?:[:\-]|\n|$)(?:\s+)?/g, '<div style="background: linear-gradient(90deg, #00ff9d22, transparent); padding: 8px 12px; margin-top: 16px; margin-bottom: 8px; border-radius: 4px; border-left: 4px solid #00ff9d; font-weight: 800; color: #00ff9d; letter-spacing: 1px; text-transform: uppercase; font-size: 13px; text-shadow: 0 0 10px #00ff9d22;">$1</div>')
-    .replace(/\*?\*?HOOK VIRALE\*?\*?:?\s*(.*?)(?=\n|$)/gi, '<div style="background: #f59e0b11; border: 1px solid #f59e0b44; border-radius: 6px; padding: 10px; margin-bottom: 8px; margin-top: 8px;"><span style="color: #f59e0b; font-weight: 800; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 4px; display: block;">🎣 HOOK VIRALE</span><span style="color: #e2e8f0; font-size: 13px;">$1</span></div>')
-    .replace(/\*?\*?TRACCIA VISIVA\*?\*?:?\s*(.*?)(?=\n|$)/gi, '<div style="background: #00ff9d11; border: 1px solid #00ff9d44; border-radius: 6px; padding: 10px; margin-bottom: 12px;"><span style="color: #00ff9d; font-weight: 800; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 4px; display: block;">👁️ TRACCIA VISIVA</span><span style="color: #a3b8cc; font-size: 13px;">$1</span></div>')
-    .replace(/(?:^|\n)(1\.|2\.|3\.|4\.|5\.|6\.|7\.|8\.|9\.)\s*(.*?)(?=\n|$)/g, '<div style="display:flex;align-items:flex-start;margin-top:10px;margin-bottom:10px;"><div style="background: #38bdf822; color: #38bdf8; width: 22px; height: 22px; text-align: center; border-radius: 50%; border: 1px solid #38bdf844; font-weight: 800; font-size: 11px; line-height: 20px; margin-right: 10px; flex-shrink: 0; display:inline-block;">$1</div><div style="flex:1;">$2</div></div>')
-    .replace(/\*\*(.*?)\*\*/g, '<strong style="color: #fff; font-weight: 700;">$1</strong>')
-    .replace(/^\s*[\-\*]\s+/gm, '<span style="color: #00ff9d; margin-right: 6px; font-weight: bold;">•</span>');
+    .replace(/(?:^|\n)##\s+(.*?)(?=\n|$)/g, '<div style="color: var(--acc-blue); font-weight: 800; font-size: 14.5px; margin-top: 18px; margin-bottom: 8px; letter-spacing: 0.5px; border-bottom: 1px solid rgba(var(--acc-blue-rgb), 0.2); padding-bottom: 4px; text-transform: uppercase;">$1</div>')
+    .replace(/(?:^|\n)###\s+(.*?)(?=\n|$)/g, '<div style="color: var(--acc-purple); font-weight: 800; font-size: 13.5px; margin-top: 14px; margin-bottom: 6px; letter-spacing: 0.5px;">$1</div>')
+    .replace(/\*?\*?(Giorno \d+|Lunedì|Martedì|Mercoledì|Giovedì|Venerdì|Sabato|Domenica)\*?\*?:?/gi, '<div style="background: linear-gradient(90deg, rgba(var(--acc-purple-rgb), 0.27), transparent); padding: 8px 12px; margin-top: 18px; margin-bottom: 6px; border-radius: 4px; border-left: 4px solid var(--acc-purple); font-weight: 800; color: var(--text-main); letter-spacing: 1px; text-transform: uppercase; font-size: 13px;">$1</div>')
+    .replace(/\**►\s*\**([^:\n]+?)\**(?:[:\-]|\n|$)(?:\s+)?/g, '<div style="background: linear-gradient(90deg, rgba(var(--acc-green-rgb), 0.13), transparent); padding: 8px 12px; margin-top: 16px; margin-bottom: 8px; border-radius: 4px; border-left: 4px solid var(--acc-green); font-weight: 800; color: var(--acc-green); letter-spacing: 1px; text-transform: uppercase; font-size: 13px; text-shadow: 0 0 10px rgba(var(--acc-green-rgb), 0.13);">$1</div>')
+    .replace(/\*?\*?HOOK VIRALE\*?\*?:?\s*(.*?)(?=\n|$)/gi, '<div style="background: rgba(var(--acc-orange-rgb), 0.07); border: 1px solid rgba(var(--acc-orange-rgb), 0.27); border-radius: 6px; padding: 10px; margin-bottom: 8px; margin-top: 8px;"><span style="color: var(--acc-orange); font-weight: 800; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 4px; display: block;">🎣 HOOK VIRALE</span><span style="color: var(--text-main); font-size: 13px;">$1</span></div>')
+    .replace(/\*?\*?TRACCIA VISIVA\*?\*?:?\s*(.*?)(?=\n|$)/gi, '<div style="background: rgba(var(--acc-green-rgb), 0.07); border: 1px solid rgba(var(--acc-green-rgb), 0.27); border-radius: 6px; padding: 10px; margin-bottom: 12px;"><span style="color: var(--acc-green); font-weight: 800; font-size: 11px; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 4px; display: block;">👁️ TRACCIA VISIVA</span><span style="color: var(--text-muted); font-size: 13px;">$1</span></div>')
+    .replace(/(?:^|\n)(1\.|2\.|3\.|4\.|5\.|6\.|7\.|8\.|9\.)\s*(.*?)(?=\n|$)/g, '<div style="display:flex;align-items:flex-start;margin-top:10px;margin-bottom:10px;"><div style="background: rgba(var(--acc-blue-rgb), 0.13); color: var(--acc-blue); width: 22px; height: 22px; text-align: center; border-radius: 50%; border: 1px solid rgba(var(--acc-blue-rgb), 0.27); font-weight: 800; font-size: 11px; line-height: 20px; margin-right: 10px; flex-shrink: 0; display:inline-block;">$1</div><div style="flex:1;">$2</div></div>')
+    .replace(/\*\*(.*?)\*\*/g, '<strong style="color: var(--text-main); font-weight: 700;">$1</strong>')
+    .replace(/^\s*[\-\*]\s+/gm, '<span style="color: var(--acc-green); margin-right: 6px; font-weight: bold;">•</span>');
   
   return <div dangerouslySetInnerHTML={{__html: html}} />;
 }
 
-function CollapsibleSection({title, color="#38bdf8", children, defaultOpen=true, icon=""}) {
+function CollapsibleSection({title, color="var(--acc-blue)", children, defaultOpen=true, icon=""}) {
   const [open,setOpen]=useState(defaultOpen);
   return (
     <div style={{marginBottom:6,border:`1px solid ${color}22`,borderRadius:10,overflow:"hidden"}}>
@@ -261,7 +267,7 @@ function CollapsibleSection({title, color="#38bdf8", children, defaultOpen=true,
         <span style={{display:"flex",alignItems:"center",gap:6}}>{icon&&<span>{icon}</span>}{title}</span>
         <span style={{fontSize:10,opacity:.7,flexShrink:0,marginLeft:8}}>{open?"▲":"▼"}</span>
       </div>
-      {open&&<div style={{padding:"12px 14px",background:"#04080f",fontSize:13,color:"#a3b8cc",lineHeight:1.75,whiteSpace:"pre-wrap"}}>{renderRichText(children)}</div>}
+      {open&&<div style={{padding:"12px 14px",background:"var(--bg-input)",fontSize:13,color:"var(--text-muted)",lineHeight:1.75,whiteSpace:"pre-wrap"}}>{renderRichText(children)}</div>}
     </div>
   );
 }
@@ -270,17 +276,17 @@ function DebugPanel({info, rawText}) {
   const [open,setOpen]=useState(false);
   if(!info&&!rawText) return null;
   return (
-    <div style={{marginTop:12,borderRadius:8,overflow:"hidden",border:"1px solid #1e3a5f"}}>
-      <button onClick={()=>setOpen(!open)} style={{width:"100%",padding:"12px 14px",background:"#070f1e",border:"none",color:"#7a9bc0",fontSize:13,cursor:"pointer",textAlign:"left",fontFamily:"monospace",display:"flex",justifyContent:"space-between",fontWeight:"bold"}}>
+    <div style={{marginTop:12,borderRadius:8,overflow:"hidden",border:"1px solid var(--border)"}}>
+      <button onClick={()=>setOpen(!open)} style={{width:"100%",padding:"12px 14px",background:"var(--bg-panel)",border:"none",color:"var(--text-muted)",fontSize:13,cursor:"pointer",textAlign:"left",fontFamily:"monospace",display:"flex",justifyContent:"space-between",fontWeight:"bold"}}>
         <span>🐛 Debug panel</span><span>{open?"▲":"▼"}</span>
       </button>
       {open&&(
         <div style={{background:"#020508",padding:12,maxHeight:300,overflowY:"auto"}}>
-          {info&&<div style={{fontSize:11,color:"#f59e0b",fontFamily:"monospace",marginBottom:8,whiteSpace:"pre-wrap"}}>{info}</div>}
+          {info&&<div style={{fontSize:11,color:"var(--acc-orange)",fontFamily:"monospace",marginBottom:8,whiteSpace:"pre-wrap"}}>{info}</div>}
           {rawText&&(
             <div>
-              <div style={{fontSize:10,color:"#4a6a8a",marginBottom:4,fontFamily:"monospace"}}>— Risposta grezza API —</div>
-              <div style={{fontSize:11,color:"#7a9bc0",fontFamily:"monospace",whiteSpace:"pre-wrap",wordBreak:"break-all"}}>{rawText.slice(0,1500)}{rawText.length>1500?"…":""}</div>
+              <div style={{fontSize:10,color:"var(--text-muted)",marginBottom:4,fontFamily:"monospace"}}>— Risposta grezza API —</div>
+              <div style={{fontSize:11,color:"var(--text-muted)",fontFamily:"monospace",whiteSpace:"pre-wrap",wordBreak:"break-all"}}>{rawText.slice(0,1500)}{rawText.length>1500?"…":""}</div>
             </div>
           )}
         </div>
@@ -292,19 +298,19 @@ function DebugPanel({info, rawText}) {
 function Sel({value,onChange,options,label}) {
   return (
     <div style={{marginBottom:14}}>
-      <label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>{label}</label>
-      <select value={value} onChange={e=>onChange(e.target.value)} style={{width:"100%",padding:"12px 14px",background:"#070f1e",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:16,outline:"none",fontFamily:"inherit"}}>
+      <label style={{display:"block",marginBottom:5,fontSize:10,color:"var(--text-muted)",letterSpacing:2,textTransform:"uppercase"}}>{label}</label>
+      <select value={value} onChange={e=>onChange(e.target.value)} style={{width:"100%",padding:"12px 14px",background:"var(--bg-panel)",border:"1px solid var(--border)",borderRadius:8,color:"var(--text-main)",fontSize:16,outline:"none",fontFamily:"inherit"}}>
         {options.map(o=><option key={o}>{o}</option>)}
       </select>
     </div>
   );
 }
 function Textarea({value,onChange,placeholder,rows=3}) {
-  return <textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows} style={{width:"100%",padding:"14px 16px",background:"#070f1e",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:16,outline:"none",resize:"vertical",fontFamily:"inherit",lineHeight:1.6,boxSizing:"border-box",marginBottom:14}}/>;
+  return <textarea value={value} onChange={e=>onChange(e.target.value)} placeholder={placeholder} rows={rows} style={{width:"100%",padding:"14px 16px",background:"var(--bg-panel)",border:"1px solid var(--border)",borderRadius:8,color:"var(--text-main)",fontSize:16,outline:"none",resize:"vertical",fontFamily:"inherit",lineHeight:1.6,boxSizing:"border-box",marginBottom:14}}/>;
 }
-function Btn({onClick,loading,children,color="#00ff9d",small=false}) {
+function Btn({onClick,loading,children,color="var(--acc-green)",small=false}) {
   return (
-    <button onClick={onClick} disabled={loading} style={{width:small?"auto":"100%",padding:small?"8px 14px":"13px 20px",background:loading?"#0a1628":`linear-gradient(135deg,${color}22,${color}11)`,border:`1px solid ${loading?"#1e3a5f":color}`,color:loading?"#4a6a8a":color,borderRadius:8,fontSize:small?12:14,fontWeight:600,cursor:loading?"not-allowed":"pointer",letterSpacing:.5,transition:"all .2s",fontFamily:"inherit"}}>
+    <button onClick={onClick} disabled={loading} style={{width:small?"auto":"100%",padding:small?"8px 14px":"13px 20px",background:loading?"var(--bg-input-hover)":`linear-gradient(135deg,${color}22,${color}11)`,border:`1px solid ${loading?"var(--border)":color}`,color:loading?"var(--text-muted)":color,borderRadius:8,fontSize:small?12:14,fontWeight:600,cursor:loading?"not-allowed":"pointer",letterSpacing:.5,transition:"all .2s",fontFamily:"inherit"}}>
       {children}
     </button>
   );
@@ -414,77 +420,77 @@ Rispondi RIGOROSAMENTE con questo JSON esatto (zero markdown fuori dal JSON):
   return (
     <div>
       <div style={{display:"flex",gap:6,marginBottom:16}}>
-        <button onClick={()=>{setMode("creator"); setSearched(false);}} style={{flex:1,padding:"10px",background:mode==="creator"?"#00ff9d22":"#060d1a",border:mode==="creator"?"1px solid #00ff9d":"1px solid #1e3a5f",borderRadius:8,color:mode==="creator"?"#00ff9d":"#4a6a8a",fontSize:13,fontFamily:"monospace",fontWeight:"bold"}}>🕵 Cerca Creator</button>
-        <button onClick={()=>{setMode("ideas"); setSearched(false);}} style={{flex:1,padding:"10px",background:mode==="ideas"?"#00ff9d22":"#060d1a",border:mode==="ideas"?"1px solid #00ff9d":"1px solid #1e3a5f",borderRadius:8,color:mode==="ideas"?"#00ff9d":"#4a6a8a",fontSize:13,fontFamily:"monospace",fontWeight:"bold"}}>💡 Cerca Idee & Format</button>
+        <button onClick={()=>{setMode("creator"); setSearched(false);}} style={{flex:1,padding:"10px",background:mode==="creator"?"rgba(var(--acc-green-rgb), 0.13)":"#060d1a",border:mode==="creator"?"1px solid var(--acc-green)":"1px solid var(--border)",borderRadius:8,color:mode==="creator"?"var(--acc-green)":"var(--text-muted)",fontSize:13,fontFamily:"monospace",fontWeight:"bold"}}>🕵 Cerca Creator</button>
+        <button onClick={()=>{setMode("ideas"); setSearched(false);}} style={{flex:1,padding:"10px",background:mode==="ideas"?"rgba(var(--acc-green-rgb), 0.13)":"#060d1a",border:mode==="ideas"?"1px solid var(--acc-green)":"1px solid var(--border)",borderRadius:8,color:mode==="ideas"?"var(--acc-green)":"var(--text-muted)",fontSize:13,fontFamily:"monospace",fontWeight:"bold"}}>💡 Cerca Idee & Format</button>
       </div>
 
-      <div style={{background:"#070f1e",border:"1px solid #1e3a5f",borderRadius:10,padding:14,marginBottom:18}}>
+      <div style={{background:"var(--bg-panel)",border:"1px solid var(--border)",borderRadius:10,padding:14,marginBottom:18}}>
         <Sel value={platform} onChange={setPlatform} options={PLATFORMS.slice(0,2)} label="Piattaforma"/>
         <div style={{marginBottom:14}}>
-          <label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>
+          <label style={{display:"block",marginBottom:5,fontSize:10,color:"var(--text-muted)",letterSpacing:2,textTransform:"uppercase"}}>
             {mode==="creator"?"Che tipo di profili cerchi?":"Cosa vuoi esplorare?"}
           </label>
           <Textarea value={query} onChange={setQuery} placeholder={mode==="creator"?"es. nutrizionista sportivo vegano":"es. format video estivi per personal trainer"} rows={2}/>
         </div>
-        <Btn onClick={handleSearch} loading={loading} color="#00ff9d">{loading?"Ricerca…":mode==="creator"?"🌍 Trova Profili":"🌍 Trova Idee"}</Btn>
+        <Btn onClick={handleSearch} loading={loading} color="var(--acc-green)">{loading?"Ricerca…":mode==="creator"?"🌍 Trova Profili":"🌍 Trova Idee"}</Btn>
       </div>
 
-      {loading&&<Spinner color="#00ff9d"/>}
+      {loading&&<Spinner color="var(--acc-green)"/>}
 
       {!loading && searched && mode === "creator" && (
         <div style={{marginTop: 20}}>
-          <div style={{fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase",marginBottom:10,fontFamily:"monospace"}}>Risultati ({creators.length})</div>
+          <div style={{fontSize:10,color:"var(--text-muted)",letterSpacing:2,textTransform:"uppercase",marginBottom:10,fontFamily:"monospace"}}>Risultati ({creators.length})</div>
           {creators.length > 0 ? creators.map((it, i) => (
              <CollapsibleSection key={`${it.handle}-${i}`} title={
                <span style={{display:"flex",alignItems:"center",gap:8}}>
                  {it.handle}
-                 <button onClick={e=>{e.stopPropagation(); onGoToScan(it.handle, platform);}} style={{background:"#0a1628",border:`1px solid #00ff9d66`,color:"#00ff9d",borderRadius:5,padding:"4px 8px",cursor:"pointer",fontSize:11,fontFamily:"monospace",lineHeight:1.4}}>
+                 <button onClick={e=>{e.stopPropagation(); onGoToScan(it.handle, platform);}} style={{background:"var(--bg-input-hover)",border:`1px solid rgba(var(--acc-green-rgb), 0.4)`,color:"var(--acc-green)",borderRadius:5,padding:"4px 8px",cursor:"pointer",fontSize:11,fontFamily:"monospace",lineHeight:1.4}}>
                    🔍 Scansiona
                  </button>
                </span>
-             } icon="🌍" color="#00ff9d" defaultOpen={false}>
-               {it.profileUrl&&<a href={it.profileUrl} target="_blank" rel="noreferrer" style={{display:"inline-block",color:"#00ff9d",fontFamily:"monospace",fontSize:12,marginBottom:8,textDecoration:"none",fontWeight:700}}>{it.profileUrl}</a>}
-               {it.desc&&<div style={{color:"#8aa8c8",lineHeight:1.6,fontSize:11}}>{it.desc}</div>}
+             } icon="🌍" color="var(--acc-green)" defaultOpen={false}>
+               {it.profileUrl&&<a href={it.profileUrl} target="_blank" rel="noreferrer" style={{display:"inline-block",color:"var(--acc-green)",fontFamily:"monospace",fontSize:12,marginBottom:8,textDecoration:"none",fontWeight:700}}>{it.profileUrl}</a>}
+               {it.desc&&<div style={{color:"var(--text-muted)",lineHeight:1.6,fontSize:11}}>{it.desc}</div>}
              </CollapsibleSection>
-          )) : <ResultBox text="Nessun profilo trovato. Prova con altre parole chiave." color="#ff6b35"/>}
+          )) : <ResultBox text="Nessun profilo trovato. Prova con altre parole chiave." color="var(--acc-red)"/>}
         </div>
       )}
 
       {!loading && searched && mode === "ideas" && (
         <div style={{marginTop: 20}}>
-          <div style={{fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase",marginBottom:10,fontFamily:"monospace"}}>Format e Idee Trovate</div>
+          <div style={{fontSize:10,color:"var(--text-muted)",letterSpacing:2,textTransform:"uppercase",marginBottom:10,fontFamily:"monospace"}}>Format e Idee Trovate</div>
           {Array.isArray(ideasResult) && ideasResult.length > 0 ? (
             ideasResult.map((f, i) => (
-             <CollapsibleSection key={i} title={f.title} icon="💡" color="#00ff9d" defaultOpen={false}>
-               <div style={{color:"#a3b8cc", lineHeight:1.7}}>
+             <CollapsibleSection key={i} title={f.title} icon="💡" color="var(--acc-green)" defaultOpen={false}>
+               <div style={{color:"var(--text-muted)", lineHeight:1.7}}>
                   {renderRichText(f.description)}
                </div>
                {f.links && f.links.length > 0 && (
-                 <div style={{marginTop:12, paddingTop:12, borderTop:"1px dashed #1e3a5f"}}>
-                   <div style={{fontSize:10,color:"#00ff9d",letterSpacing:1,textTransform:"uppercase",marginBottom:8,fontFamily:"monospace"}}>🔗 Riferimenti Format</div>
+                 <div style={{marginTop:12, paddingTop:12, borderTop:"1px dashed var(--border)"}}>
+                   <div style={{fontSize:10,color:"var(--acc-green)",letterSpacing:1,textTransform:"uppercase",marginBottom:8,fontFamily:"monospace"}}>🔗 Riferimenti Format</div>
                    {f.links.map((lnk,idx)=>(
-                      <a key={idx} href={lnk} target="_blank" rel="noreferrer" style={{display:"block",color:"#38bdf8",fontSize:11,textDecoration:"none",marginBottom:6,fontFamily:"monospace",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>→ {lnk}</a>
+                      <a key={idx} href={lnk} target="_blank" rel="noreferrer" style={{display:"block",color:"var(--acc-blue)",fontSize:11,textDecoration:"none",marginBottom:6,fontFamily:"monospace",overflow:"hidden",textOverflow:"ellipsis",whiteSpace:"nowrap"}}>→ {lnk}</a>
                    ))}
                  </div>
                )}
              </CollapsibleSection>
             ))
           ) : (
-            <ResultBox text="Nessun format generato. Prova termini più chiari." color="#ff6b35"/>
+            <ResultBox text="Nessun format generato. Prova termini più chiari." color="var(--acc-red)"/>
           )}
         </div>
       )}
 
       {/* HISTORIES */}
       {!loading && mode === "creator" && historyCreators.length > 0 && (
-        <div style={{marginTop: 30, paddingTop: 20, borderTop: "1px dashed #1e3a5f"}}>
-          <div style={{fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>Archivio Ricerche Creator</div>
+        <div style={{marginTop: 30, paddingTop: 20, borderTop: "1px dashed var(--border)"}}>
+          <div style={{fontSize:10,color:"var(--text-muted)",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>Archivio Ricerche Creator</div>
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
             {historyCreators.map(item => (
-              <div key={item.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:"#0a0816",border:"1px solid #00ff9d33",borderRadius:8}}>
+              <div key={item.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg-input-hover)",border:"1px solid rgba(var(--acc-green-rgb), 0.2)",borderRadius:8}}>
                 <div onClick={() => { setCreators(item.data); setSearched(true); }} style={{cursor:"pointer",flex:1,display:"flex",alignItems:"center",gap:10}}>
-                  <span style={{fontSize:12,color:"#00ff9d",fontWeight:"bold"}}>{item.name}</span>
-                  <span style={{fontSize:10,color:"#7a9bc0"}}>{item.date}</span>
+                  <span style={{fontSize:12,color:"var(--acc-green)",fontWeight:"bold"}}>{item.name}</span>
+                  <span style={{fontSize:10,color:"var(--text-muted)"}}>{item.date}</span>
                 </div>
                 <button onClick={(e) => {
                   e.stopPropagation();
@@ -493,7 +499,7 @@ Rispondi RIGOROSAMENTE con questo JSON esatto (zero markdown fuori dal JSON):
                      saveExplorerCreators(n);
                      return n;
                   });
-                }} style={{background:"none",border:"none",color:"#ff6b35",cursor:"pointer",fontSize:13,padding:"4px 8px"}} title="Elimina Ricerca">🗑️</button>
+                }} style={{background:"none",border:"none",color:"var(--acc-red)",cursor:"pointer",fontSize:13,padding:"4px 8px"}} title="Elimina Ricerca">🗑️</button>
               </div>
             ))}
           </div>
@@ -501,14 +507,14 @@ Rispondi RIGOROSAMENTE con questo JSON esatto (zero markdown fuori dal JSON):
       )}
 
       {!loading && mode === "ideas" && historyIdeas.length > 0 && (
-        <div style={{marginTop: 30, paddingTop: 20, borderTop: "1px dashed #1e3a5f"}}>
-          <div style={{fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>Archivio Ricerche Idee</div>
+        <div style={{marginTop: 30, paddingTop: 20, borderTop: "1px dashed var(--border)"}}>
+          <div style={{fontSize:10,color:"var(--text-muted)",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>Archivio Ricerche Idee</div>
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
             {historyIdeas.map(item => (
-              <div key={item.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:"#0a0816",border:"1px solid #00ff9d33",borderRadius:8}}>
+              <div key={item.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg-input-hover)",border:"1px solid rgba(var(--acc-green-rgb), 0.2)",borderRadius:8}}>
                 <div onClick={() => { setIdeasResult(item.data); setSearched(true); }} style={{cursor:"pointer",flex:1,display:"flex",alignItems:"center",gap:10}}>
-                  <span style={{fontSize:12,color:"#00ff9d",fontWeight:"bold"}}>{item.name}</span>
-                  <span style={{fontSize:10,color:"#7a9bc0"}}>{item.date}</span>
+                  <span style={{fontSize:12,color:"var(--acc-green)",fontWeight:"bold"}}>{item.name}</span>
+                  <span style={{fontSize:10,color:"var(--text-muted)"}}>{item.date}</span>
                 </div>
                 <button onClick={(e) => {
                   e.stopPropagation();
@@ -517,7 +523,7 @@ Rispondi RIGOROSAMENTE con questo JSON esatto (zero markdown fuori dal JSON):
                      saveExplorerIdeas(n);
                      return n;
                   });
-                }} style={{background:"none",border:"none",color:"#ff6b35",cursor:"pointer",fontSize:13,padding:"4px 8px"}} title="Elimina Ricerca">🗑️</button>
+                }} style={{background:"none",border:"none",color:"var(--acc-red)",cursor:"pointer",fontSize:13,padding:"4px 8px"}} title="Elimina Ricerca">🗑️</button>
               </div>
             ))}
           </div>
@@ -539,12 +545,12 @@ function HookGenerator() {
   };
   return (
     <div>
-      <div style={{marginBottom:14}}><label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Argomento del video *</label><Textarea value={topic} onChange={setTopic} placeholder="es. 'perché stai fallendo con la dieta'..." rows={2}/></div>
+      <div style={{marginBottom:14}}><label style={{display:"block",marginBottom:5,fontSize:10,color:"var(--text-muted)",letterSpacing:2,textTransform:"uppercase"}}>Argomento del video *</label><Textarea value={topic} onChange={setTopic} placeholder="es. 'perché stai fallendo con la dieta'..." rows={2}/></div>
       <Sel value={platform} onChange={setPlatform} options={PLATFORMS} label="Piattaforma"/>
       <Sel value={hookType} onChange={setHookType} options={["Curiosità","Paura/Problema","Risultato shock","Contro-intuitivo","Storia personale","Sfida"]} label="Tipo di hook"/>
-      <Btn onClick={run} loading={loading} color="#ff6b35">{loading?"Generazione…":"🎣 Genera Hook"}</Btn>
-      {loading&&<Spinner color="#ff6b35"/>}
-      <ResultBox text={result} color="#ff6b35"/>
+      <Btn onClick={run} loading={loading} color="var(--acc-red)">{loading?"Generazione…":"🎣 Genera Hook"}</Btn>
+      {loading&&<Spinner color="var(--acc-red)"/>}
+      <ResultBox text={result} color="var(--acc-red)"/>
     </div>
   );
 }
@@ -699,39 +705,39 @@ Rispondi in italiano. Usa SOLO i tag esatti.`;
   return (
     <div>
       {selectedAccounts.length>0&&(
-        <div style={{marginBottom:18,border:"1px solid #a78bfa33",borderRadius:10,padding:12,background:"#0d0a1f"}}>
+        <div style={{marginBottom:18,border:"1px solid rgba(var(--acc-purple-rgb), 0.2)",borderRadius:10,padding:12,background:"var(--bg-panel)"}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-            <div style={{fontSize:10,color:"#a78bfa",letterSpacing:2,textTransform:"uppercase",fontFamily:"monospace"}}>Account selezionati ({selectedAccounts.length})</div>
-            {onClearAccounts&&<button onClick={onClearAccounts} style={{background:"#1a1035",border:"1px solid #a78bfa55",borderRadius: 6,color:"#a78bfa",cursor:"pointer",fontSize:11,fontFamily:"monospace",padding:"8px 12px"}}>✕ Svuota</button>}
+            <div style={{fontSize:10,color:"var(--acc-purple)",letterSpacing:2,textTransform:"uppercase",fontFamily:"monospace"}}>Account selezionati ({selectedAccounts.length})</div>
+            {onClearAccounts&&<button onClick={onClearAccounts} style={{background:"var(--bg-input-hover)",border:"1px solid rgba(var(--acc-purple-rgb), 0.33)",borderRadius: 6,color:"var(--acc-purple)",cursor:"pointer",fontSize:11,fontFamily:"monospace",padding:"8px 12px"}}>✕ Svuota</button>}
           </div>
           <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:12}}>
             {selectedAccounts.map(a=>(
-              <span key={a.handle} style={{fontSize:11,color:"#a78bfa",background:"#1a1035",border:"1px solid #a78bfa33",borderRadius:6,padding:"3px 8px",fontFamily:"monospace"}}>{a.handle}</span>
+              <span key={a.handle} style={{fontSize:11,color:"var(--acc-purple)",background:"var(--bg-input-hover)",border:"1px solid rgba(var(--acc-purple-rgb), 0.2)",borderRadius:6,padding:"3px 8px",fontFamily:"monospace"}}>{a.handle}</span>
             ))}
           </div>
         </div>
       )}
       <div style={{marginBottom:14}}>
-        <label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Obiettivo principale {selectedAccounts.length===0?"*":""}</label>
+        <label style={{display:"block",marginBottom:5,fontSize:10,color:"var(--text-muted)",letterSpacing:2,textTransform:"uppercase"}}>Obiettivo principale {selectedAccounts.length===0?"*":""}</label>
         <Textarea value={goal} onChange={setGoal} placeholder="es. acquisire clienti per consulenze..." rows={2}/>
-        <button onClick={() => onGoToExplorer("ideas")} style={{background:"none",border:"none",color:"#a78bfa",textDecoration:"underline",fontSize:11,cursor:"pointer",marginTop:6,fontFamily:"monospace"}}>Non sai da dove partire? 🌍 Trova spunti e format in Explorer</button>
+        <button onClick={() => onGoToExplorer("ideas")} style={{background:"none",border:"none",color:"var(--acc-purple)",textDecoration:"underline",fontSize:11,cursor:"pointer",marginTop:6,fontFamily:"monospace"}}>Non sai da dove partire? 🌍 Trova spunti e format in Explorer</button>
       </div>
-      <div style={{marginBottom:14}}><label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Target audience</label><Textarea value={audience} onChange={setAudience} placeholder="es. donne 30-45 anni..." rows={2}/></div>
+      <div style={{marginBottom:14}}><label style={{display:"block",marginBottom:5,fontSize:10,color:"var(--text-muted)",letterSpacing:2,textTransform:"uppercase"}}>Target audience</label><Textarea value={audience} onChange={setAudience} placeholder="es. donne 30-45 anni..." rows={2}/></div>
       <Sel value={platform} onChange={setPlatform} options={PLATFORMS} label="Piattaforma principale"/>
-      <Btn onClick={generateStrategy} loading={loading} color="#a78bfa">
+      <Btn onClick={generateStrategy} loading={loading} color="var(--acc-purple)">
         {loading?"Costruzione…":selectedAccounts.length>0?"🎬 Genera strategia dai competitor":"🎬 Crea Strategia"}
       </Btn>
-      {loading&&<Spinner color="#a78bfa"/>}
+      {loading&&<Spinner color="var(--acc-purple)"/>}
 
       {history.length > 0 && !loading && (
         <div style={{marginTop: 20, marginBottom: 12}}>
-          <div style={{fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>Strategie Salvate</div>
+          <div style={{fontSize:10,color:"var(--text-muted)",letterSpacing:2,textTransform:"uppercase",marginBottom:8}}>Strategie Salvate</div>
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
             {history.map(item => (
-              <div key={item.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:"#0a0816",border:"1px solid #a78bfa33",borderRadius:8}}>
+              <div key={item.id} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"8px 12px",background:"var(--bg-input-hover)",border:"1px solid rgba(var(--acc-purple-rgb), 0.2)",borderRadius:8}}>
                 <div onClick={() => setResult(item.data)} style={{cursor:"pointer",flex:1,display:"flex",alignItems:"center",gap:10}}>
-                  <span style={{fontSize:12,color:"#a78bfa",fontWeight:"bold"}}>{item.name}</span>
-                  <span style={{fontSize:10,color:"#7a9bc0"}}>{item.date}</span>
+                  <span style={{fontSize:12,color:"var(--acc-purple)",fontWeight:"bold"}}>{item.name}</span>
+                  <span style={{fontSize:10,color:"var(--text-muted)"}}>{item.date}</span>
                 </div>
                 <button onClick={(e) => {
                   e.stopPropagation();
@@ -741,7 +747,7 @@ Rispondi in italiano. Usa SOLO i tag esatti.`;
                      if (result && result === item.data) setResult(null); // Clear view if we delete active
                      return n;
                   });
-                }} style={{background:"none",border:"none",color:"#f59e0b",cursor:"pointer",fontSize:16,padding:"8px 12px"}} title="Elimina Strategia">🗑️</button>
+                }} style={{background:"none",border:"none",color:"var(--acc-orange)",cursor:"pointer",fontSize:16,padding:"8px 12px"}} title="Elimina Strategia">🗑️</button>
               </div>
             ))}
           </div>
@@ -749,22 +755,22 @@ Rispondi in italiano. Usa SOLO i tag esatti.`;
       )}
 
       {result && typeof result === "object" && result._error && (
-        <ResultBox text={`Errore:\n${result._error}`} color="#ff6b35"/>
+        <ResultBox text={`Errore:\n${result._error}`} color="var(--acc-red)"/>
       )}
       {result && typeof result === "object" && !result._error && (
         <div style={{marginTop: 18}}>
-          {result.pianoEditoriale && <CollapsibleSection title="📋 PIANO EDITORIALE 7 GIORNI" color="#a78bfa" defaultOpen={true}>{safeStr(result.pianoEditoriale)}</CollapsibleSection>}
-          {result.strutturaVideo && <CollapsibleSection title="🎬 STRUTTURA VIDEO" color="#a78bfa" defaultOpen={false}>{safeStr(result.strutturaVideo)}</CollapsibleSection>}
-          {result.analisiComune && <CollapsibleSection title="🔍 ANALISI COMUNE" color="#a78bfa" defaultOpen={false}>{safeStr(result.analisiComune)}</CollapsibleSection>}
-          {result.strategiaDifferenziante && <CollapsibleSection title="🎬 STRATEGIA DIFFERENZIANTE E GAP" color="#a78bfa" defaultOpen={false}>{safeStr(result.strategiaDifferenziante)}</CollapsibleSection>}
-          {result.frameworkRipetibile && <CollapsibleSection title="🔁 FRAMEWORK RIPETIBILE" color="#a78bfa" defaultOpen={false}>{safeStr(result.frameworkRipetibile)}</CollapsibleSection>}
-          {result.kpiPrincipali && <CollapsibleSection title="📈 KPI PRINCIPALI" color="#a78bfa" defaultOpen={false}>{safeStr(result.kpiPrincipali)}</CollapsibleSection>}
-          {result.ctaStrategy && <CollapsibleSection title="🤝 CTA STRATEGY" color="#a78bfa" defaultOpen={false}>{safeStr(result.ctaStrategy)}</CollapsibleSection>}
-          {result.azioniImmediate && <CollapsibleSection title="⚡ 3 AZIONI IMMEDIATE" color="#a78bfa" defaultOpen={false}>{safeStr(result.azioniImmediate)}</CollapsibleSection>}
+          {result.pianoEditoriale && <CollapsibleSection title="📋 PIANO EDITORIALE 7 GIORNI" color="var(--acc-purple)" defaultOpen={true}>{safeStr(result.pianoEditoriale)}</CollapsibleSection>}
+          {result.strutturaVideo && <CollapsibleSection title="🎬 STRUTTURA VIDEO" color="var(--acc-purple)" defaultOpen={false}>{safeStr(result.strutturaVideo)}</CollapsibleSection>}
+          {result.analisiComune && <CollapsibleSection title="🔍 ANALISI COMUNE" color="var(--acc-purple)" defaultOpen={false}>{safeStr(result.analisiComune)}</CollapsibleSection>}
+          {result.strategiaDifferenziante && <CollapsibleSection title="🎬 STRATEGIA DIFFERENZIANTE E GAP" color="var(--acc-purple)" defaultOpen={false}>{safeStr(result.strategiaDifferenziante)}</CollapsibleSection>}
+          {result.frameworkRipetibile && <CollapsibleSection title="🔁 FRAMEWORK RIPETIBILE" color="var(--acc-purple)" defaultOpen={false}>{safeStr(result.frameworkRipetibile)}</CollapsibleSection>}
+          {result.kpiPrincipali && <CollapsibleSection title="📈 KPI PRINCIPALI" color="var(--acc-purple)" defaultOpen={false}>{safeStr(result.kpiPrincipali)}</CollapsibleSection>}
+          {result.ctaStrategy && <CollapsibleSection title="🤝 CTA STRATEGY" color="var(--acc-purple)" defaultOpen={false}>{safeStr(result.ctaStrategy)}</CollapsibleSection>}
+          {result.azioniImmediate && <CollapsibleSection title="⚡ 3 AZIONI IMMEDIATE" color="var(--acc-purple)" defaultOpen={false}>{safeStr(result.azioniImmediate)}</CollapsibleSection>}
         </div>
       )}
       {result && typeof result === "string" && (
-        <ResultBox text={result} color="#a78bfa"/>
+        <ResultBox text={result} color="var(--acc-purple)"/>
       )}
       <DebugPanel info={debugInfo} rawText={rawText} />
     </div>
@@ -781,10 +787,10 @@ function ViralFormula() {
   };
   return (
     <div>
-      <div style={{marginBottom:14}}><label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Descrivi la tua idea video *</label><Textarea value={videoIdea} onChange={setVideoIdea} placeholder="es. '5 alimenti che pensavi sani ma che fanno ingrassare'..." rows={4}/></div>
-      <Btn onClick={run} loading={loading} color="#f59e0b">{loading?"Analisi…":"🔥 Analizza Potenziale Virale"}</Btn>
-      {loading&&<Spinner color="#f59e0b"/>}
-      <ResultBox text={result} color="#f59e0b"/>
+      <div style={{marginBottom:14}}><label style={{display:"block",marginBottom:5,fontSize:10,color:"var(--text-muted)",letterSpacing:2,textTransform:"uppercase"}}>Descrivi la tua idea video *</label><Textarea value={videoIdea} onChange={setVideoIdea} placeholder="es. '5 alimenti che pensavi sani ma che fanno ingrassare'..." rows={4}/></div>
+      <Btn onClick={run} loading={loading} color="var(--acc-orange)">{loading?"Analisi…":"🔥 Analizza Potenziale Virale"}</Btn>
+      {loading&&<Spinner color="var(--acc-orange)"/>}
+      <ResultBox text={result} color="var(--acc-orange)"/>
     </div>
   );
 }
@@ -792,31 +798,31 @@ function ViralFormula() {
 // ─── COMPETITORS ──────────────────────────────────────────────────
 function ScoreBadge({score}) {
   const n=Number(score)||0;
-  const c=n>=8?"#00ff9d":n>=6?"#f59e0b":"#ff6b35";
+  const c=n>=8?"var(--acc-green)":n>=6?"var(--acc-orange)":"var(--acc-red)";
   return <div style={{display:"inline-flex",alignItems:"center",justifyContent:"center",width:36,height:36,borderRadius:"50%",background:`${c}18`,border:`2px solid ${c}`,color:c,fontWeight:700,fontSize:13,fontFamily:"monospace",flexShrink:0}}>{n}</div>;
 }
 
 function VideoCard({video,onDelete}) {
   const [open,setOpen]=useState(false);
   return (
-    <div style={{background:"#04080f",border:"1px solid #1e3a5f",borderRadius:8,padding:12,marginBottom:8}}>
+    <div style={{background:"var(--bg-input)",border:"1px solid var(--border)",borderRadius:8,padding:12,marginBottom:8}}>
       <div style={{display:"flex",gap:10,alignItems:"flex-start"}}>
         <ScoreBadge score={video.score}/>
         <div style={{flex:1,minWidth:0}}>
-          <div style={{color:"#e8f4ff",fontSize:13,fontWeight:600,marginBottom:4,lineHeight:1.4}}>{video.title}</div>
+          <div style={{color:"var(--text-main)",fontSize:13,fontWeight:600,marginBottom:4,lineHeight:1.4}}>{video.title}</div>
           {video.tags?.length>0&&(
             <div style={{display:"flex",gap:5,flexWrap:"wrap",marginBottom:6}}>
-              {video.tags.slice(0,3).map((t,i)=><span key={i} style={{fontSize:10,color:"#38bdf8",background:"#38bdf818",padding:"2px 6px",borderRadius:4,fontFamily:"monospace"}}>{t}</span>)}
+              {video.tags.slice(0,3).map((t,i)=><span key={i} style={{fontSize:10,color:"var(--acc-blue)",background:"rgba(var(--acc-blue-rgb), 0.09)",padding:"2px 6px",borderRadius:4,fontFamily:"monospace"}}>{t}</span>)}
             </div>
           )}
           <div style={{display:"flex",gap:10,alignItems:"center",flexWrap:"wrap"}}>
             {video.url&&video.url.startsWith("http")&&(
-              <a href={video.url} target="_blank" rel="noopener noreferrer" style={{fontSize:11,color:"#38bdf8",textDecoration:"none",fontFamily:"monospace"}}>🔗 Apri video</a>
+              <a href={video.url} target="_blank" rel="noopener noreferrer" style={{fontSize:11,color:"var(--acc-blue)",textDecoration:"none",fontFamily:"monospace"}}>🔗 Apri video</a>
             )}
-            {video.analysis&&<button onClick={()=>setOpen(!open)} style={{background:"none",border:"none",color:"#4a6a8a",fontSize:11,cursor:"pointer",fontFamily:"monospace",padding:0}}>{open?"▲ meno":"▼ analisi"}</button>}
-            <button onClick={()=>onDelete(video.url||video.title)} style={{background:"none",border:"none",color:"#2a4a6a",fontSize:14,cursor:"pointer",marginLeft:"auto"}}>✕</button>
+            {video.analysis&&<button onClick={()=>setOpen(!open)} style={{background:"none",border:"none",color:"var(--text-muted)",fontSize:11,cursor:"pointer",fontFamily:"monospace",padding:0}}>{open?"▲ meno":"▼ analisi"}</button>}
+            <button onClick={()=>onDelete(video.url||video.title)} style={{background:"none",border:"none",color:"var(--border-focus)",fontSize:14,cursor:"pointer",marginLeft:"auto"}}>✕</button>
           </div>
-          {open&&video.analysis&&<div style={{marginTop:8,padding:"8px 10px",background:"#070f1e",borderRadius:6,fontSize:12,color:"#7a9bc0",lineHeight:1.6,fontFamily:"monospace"}}>{video.analysis}</div>}
+          {open&&video.analysis&&<div style={{marginTop:8,padding:"8px 10px",background:"var(--bg-panel)",borderRadius:6,fontSize:12,color:"var(--text-muted)",lineHeight:1.6,fontFamily:"monospace"}}>{video.analysis}</div>}
         </div>
       </div>
     </div>
@@ -957,27 +963,27 @@ Regole:
 function CompetitorRow({comp,onDelete,onScan,onView,onProfile,onDiscover,scanning,analyzing,discovering, isSelected, onToggleStrategy}) {
   const icon=comp.platform==="Instagram"?"📸":"🎵";
   return (
-    <div style={{background:"#070f1e",border:"1px solid #1e3a5f",borderRadius:10,padding:14,marginBottom:10}}>
+    <div style={{background:"var(--bg-panel)",border:"1px solid var(--border)",borderRadius:10,padding:14,marginBottom:10}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
           <span style={{fontSize:20}}>{icon}</span>
           <div>
-            <div style={{color:"#e8f4ff",fontWeight:600,fontSize:14}}>{comp.handle}</div>
-            <div style={{color:"#4a6a8a",fontSize:11,fontFamily:"monospace"}}>{comp.platform}</div>
-            {comp.searchKeywords?.trim() && <div style={{color:"#2a4a6a",fontSize:10,fontFamily:"monospace"}}>Keywords: {comp.searchKeywords}</div>}
+            <div style={{color:"var(--text-main)",fontWeight:600,fontSize:14}}>{comp.handle}</div>
+            <div style={{color:"var(--text-muted)",fontSize:11,fontFamily:"monospace"}}>{comp.platform}</div>
+            {comp.searchKeywords?.trim() && <div style={{color:"var(--border-focus)",fontSize:10,fontFamily:"monospace"}}>Keywords: {comp.searchKeywords}</div>}
           </div>
         </div>
-        <button onClick={()=>onDelete(comp.id)} style={{background:"none",border:"none",color:"#2a4a6a",cursor:"pointer",fontSize:18,padding:"2px 8px"}}>✕</button>
+        <button onClick={()=>onDelete(comp.id)} style={{background:"none",border:"none",color:"var(--border-focus)",cursor:"pointer",fontSize:18,padding:"2px 8px"}}>✕</button>
       </div>
-      {comp.lastScan&&<div style={{fontSize:10,color:"#4a6a8a",fontFamily:"monospace",marginBottom:10}}>{comp.videos?.length||0} video · scansione {new Date(comp.lastScan).toLocaleDateString("it-IT")}</div>}
+      {comp.lastScan&&<div style={{fontSize:10,color:"var(--text-muted)",fontFamily:"monospace",marginBottom:10}}>{comp.videos?.length||0} video · scansione {new Date(comp.lastScan).toLocaleDateString("it-IT")}</div>}
       <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-        <Btn onClick={()=>onScan(comp)} loading={scanning===comp.id} color="#38bdf8" small>
+        <Btn onClick={()=>onScan(comp)} loading={scanning===comp.id} color="var(--acc-blue)" small>
           {scanning===comp.id?"🔍 Ricerca…":"🔍 Scansiona"}
         </Btn>
         {comp.lastScan && (
           <>
-            <Btn onClick={()=>onView(comp)} color="#00ff9d" small>📖 Apri</Btn>
-            <Btn onClick={()=>onToggleStrategy(comp)} color="#a78bfa" small>
+            <Btn onClick={()=>onView(comp)} color="var(--acc-green)" small>📖 Apri</Btn>
+            <Btn onClick={()=>onToggleStrategy(comp)} color="var(--acc-purple)" small>
               {isSelected ? "✅ In Strategia" : "➕ Aggiungi a Strategia"}
             </Btn>
           </>
@@ -1403,54 +1409,54 @@ Rispondi SOLO con JSON: {"queries":["query1","query2","query3","query4"]}`;
   return (
     <div>
       {/* Add form */}
-      <div style={{background:"#070f1e",border:"1px solid #1e3a5f",borderRadius:10,padding:14,marginBottom:18}}>
-        <div style={{fontSize:10,color:"#38bdf8",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontFamily:"monospace"}}>+ Aggiungi Competitor</div>
+      <div style={{background:"var(--bg-panel)",border:"1px solid var(--border)",borderRadius:10,padding:14,marginBottom:18}}>
+        <div style={{fontSize:10,color:"var(--acc-blue)",letterSpacing:2,textTransform:"uppercase",marginBottom:12,fontFamily:"monospace"}}>+ Aggiungi Competitor</div>
         <div style={{marginBottom:10}}>
-          <label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Handle o URL profilo</label>
-          <input value={handle} onChange={e=>setHandle(e.target.value)} placeholder="@beardedscara o URL" onKeyDown={e=>e.key==="Enter"&&addCompetitor()} style={{width:"100%",padding:"14px 16px",background:"#04080f",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:16,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
+          <label style={{display:"block",marginBottom:5,fontSize:10,color:"var(--text-muted)",letterSpacing:2,textTransform:"uppercase"}}>Handle o URL profilo</label>
+          <input value={handle} onChange={e=>setHandle(e.target.value)} placeholder="@beardedscara o URL" onKeyDown={e=>e.key==="Enter"&&addCompetitor()} style={{width:"100%",padding:"14px 16px",background:"var(--bg-input)",border:"1px solid var(--border)",borderRadius:8,color:"var(--text-main)",fontSize:16,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
         </div>
         <div style={{marginBottom:10}}>
-          <label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Parole chiave (opzionale)</label>
-          <input value={searchKeywords} onChange={e=>setSearchKeywords(e.target.value)} placeholder="es. beard tips viaggio germany" style={{width:"100%",padding:"14px 16px",background:"#04080f",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:16,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
+          <label style={{display:"block",marginBottom:5,fontSize:10,color:"var(--text-muted)",letterSpacing:2,textTransform:"uppercase"}}>Parole chiave (opzionale)</label>
+          <input value={searchKeywords} onChange={e=>setSearchKeywords(e.target.value)} placeholder="es. beard tips viaggio germany" style={{width:"100%",padding:"14px 16px",background:"var(--bg-input)",border:"1px solid var(--border)",borderRadius:8,color:"var(--text-main)",fontSize:16,outline:"none",fontFamily:"inherit",boxSizing:"border-box"}}/>
         </div>
         <div style={{display:"flex",gap:8,marginBottom:12}}>
           <div style={{flex:1}}>
-            <label style={{display:"block",marginBottom:5,fontSize:10,color:"#7a9bc0",letterSpacing:2,textTransform:"uppercase"}}>Piattaforma</label>
-            <select value={platform} onChange={e=>setPlatform(e.target.value)} style={{width:"100%",padding:"12px 14px",background:"#04080f",border:"1px solid #1e3a5f",borderRadius:8,color:"#c8d8f0",fontSize:16,outline:"none",fontFamily:"inherit"}}>
+            <label style={{display:"block",marginBottom:5,fontSize:10,color:"var(--text-muted)",letterSpacing:2,textTransform:"uppercase"}}>Piattaforma</label>
+            <select value={platform} onChange={e=>setPlatform(e.target.value)} style={{width:"100%",padding:"12px 14px",background:"var(--bg-input)",border:"1px solid var(--border)",borderRadius:8,color:"var(--text-main)",fontSize:16,outline:"none",fontFamily:"inherit"}}>
               <option>TikTok</option><option>Instagram</option>
             </select>
           </div>
         </div>
-        <Btn onClick={addCompetitor} loading={false} color="#38bdf8">🔍 Scansiona</Btn>
+        <Btn onClick={addCompetitor} loading={false} color="var(--acc-blue)">🔍 Scansiona</Btn>
         <div style={{marginTop: 10, textAlign: "left"}}>
-           <button onClick={()=>onGoToExplorer("creator")} style={{background:"none",border:"none",color:"#38bdf8",textDecoration:"underline",fontSize:11,cursor:"pointer",fontFamily:"monospace"}}>Zero idee sui nomi? 🌍 Cerca nuovi Competitor in Explorer</button>
+           <button onClick={()=>onGoToExplorer("creator")} style={{background:"none",border:"none",color:"var(--acc-blue)",textDecoration:"underline",fontSize:11,cursor:"pointer",fontFamily:"monospace"}}>Zero idee sui nomi? 🌍 Cerca nuovi Competitor in Explorer</button>
         </div>
       </div>
 
       {storageReady&&(
-        <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:14,fontSize:11,color:"#4a6a8a",fontFamily:"monospace"}}>
-          <div style={{width:6,height:6,borderRadius:"50%",background:"#38bdf8",boxShadow:"0 0 6px #38bdf8"}}/>
+        <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:14,fontSize:11,color:"var(--text-muted)",fontFamily:"monospace"}}>
+          <div style={{width:6,height:6,borderRadius:"50%",background:"var(--acc-blue)",boxShadow:"0 0 6px var(--acc-blue)"}}/>
           {competitors.length} competitor salvati
         </div>
       )}
 
       {selectedAccounts.length>0&&(
-        <div style={{marginBottom:14,border:"1px solid #a78bfa44",borderRadius:10,padding:10,background:"#0d0a1f"}}>
-          <div style={{fontSize:10,color:"#a78bfa",letterSpacing:2,textTransform:"uppercase",fontFamily:"monospace",marginBottom:8}}>Account selezionati ({selectedAccounts.length})</div>
+        <div style={{marginBottom:14,border:"1px solid rgba(var(--acc-purple-rgb), 0.27)",borderRadius:10,padding:10,background:"var(--bg-panel)"}}>
+          <div style={{fontSize:10,color:"var(--acc-purple)",letterSpacing:2,textTransform:"uppercase",fontFamily:"monospace",marginBottom:8}}>Account selezionati ({selectedAccounts.length})</div>
           <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:10}}>
             {selectedAccounts.map(a=>(
-              <span key={a.handle} style={{display:"inline-flex",alignItems:"center",gap:8,fontSize:12,color:"#a78bfa",background:"#1a1035",border:"1px solid #a78bfa33",borderRadius:6,padding:"6px 12px",fontFamily:"monospace"}}>
+              <span key={a.handle} style={{display:"inline-flex",alignItems:"center",gap:8,fontSize:12,color:"var(--acc-purple)",background:"var(--bg-input-hover)",border:"1px solid rgba(var(--acc-purple-rgb), 0.2)",borderRadius:6,padding:"6px 12px",fontFamily:"monospace"}}>
                 {a.handle}
-                <button onClick={()=>onRemoveAccount(a.handle)} style={{background:"none",border:"none",color:"#6a5a8a",cursor:"pointer",fontSize:16,padding:"4px",margin:"-4px -8px -4px 0",lineHeight:1}}>✕</button>
+                <button onClick={()=>onRemoveAccount(a.handle)} style={{background:"none",border:"none",color:"var(--text-muted)",cursor:"pointer",fontSize:16,padding:"4px",margin:"-4px -8px -4px 0",lineHeight:1}}>✕</button>
               </span>
             ))}
           </div>
-          <Btn onClick={onGoToStrategy} color="#a78bfa" small>🎬 Genera strategia dai competitor →</Btn>
+          <Btn onClick={onGoToStrategy} color="var(--acc-purple)" small>🎬 Genera strategia dai competitor →</Btn>
         </div>
       )}
 
       {competitors.length===0?(
-        <div style={{textAlign:"center",color:"#2a4a6a",padding:"28px 0",fontFamily:"monospace",fontSize:13,lineHeight:1.8}}>
+        <div style={{textAlign:"center",color:"var(--border-focus)",padding:"28px 0",fontFamily:"monospace",fontSize:13,lineHeight:1.8}}>
           Nessun competitor ancora.<br/>Aggiungine uno sopra per iniziare.
         </div>
       ):(
@@ -1466,11 +1472,11 @@ Rispondi SOLO con JSON: {"queries":["query1","query2","query3","query4"]}`;
       {selectedComp&&(
         <div style={{marginTop:22}}>
           <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-            <div style={{fontSize:13,color:"#38bdf8",fontFamily:"monospace",fontWeight:600}}>🎬 {selectedComp.handle}</div>
-            <div style={{fontSize:10,color:"#4a6a8a",fontFamily:"monospace"}}>🟢≥8 🟡≥6 🔴&lt;6</div>
+            <div style={{fontSize:13,color:"var(--acc-blue)",fontFamily:"monospace",fontWeight:600}}>🎬 {selectedComp.handle}</div>
+            <div style={{fontSize:10,color:"var(--text-muted)",fontFamily:"monospace"}}>🟢≥8 🟡≥6 🔴&lt;6</div>
           </div>
           {selectedComp.searchKeywords?.trim() && (
-            <div style={{fontSize:10,color:"#2a4a6a",fontFamily:"monospace",marginBottom:10}}>
+            <div style={{fontSize:10,color:"var(--border-focus)",fontFamily:"monospace",marginBottom:10}}>
               + parole chiave: {selectedComp.searchKeywords}
             </div>
           )}
@@ -1478,7 +1484,7 @@ Rispondi SOLO con JSON: {"queries":["query1","query2","query3","query4"]}`;
           {!scanning&&(
             <div style={{display:"flex",gap:6,marginBottom:12,overflowX:"auto"}}>
               {["video","profilo","competitor"].map(tab=>(
-                <button key={tab} onClick={()=>setScanTab(tab)} style={{flexShrink:0,padding:"8px 12px",borderRadius:8,border:scanTab===tab?`1px solid #38bdf866`:"1px solid #0e2040",background:scanTab===tab?"#0b1b33":"#060d1a",color:scanTab===tab?"#38bdf8":"#4a6a8a",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"monospace",textTransform:"uppercase"}}>
+                <button key={tab} onClick={()=>setScanTab(tab)} style={{flexShrink:0,padding:"8px 12px",borderRadius:8,border:scanTab===tab?`1px solid rgba(var(--acc-blue-rgb), 0.4)`:"1px solid #0e2040",background:scanTab===tab?"#0b1b33":"#060d1a",color:scanTab===tab?"var(--acc-blue)":"var(--text-muted)",fontSize:11,fontWeight:600,cursor:"pointer",fontFamily:"monospace",textTransform:"uppercase"}}>
                   {tab==="video"?"Video":tab==="profilo"?"Analisi Profilo":"Competitor"}
                 </button>
               ))}
@@ -1487,11 +1493,11 @@ Rispondi SOLO con JSON: {"queries":["query1","query2","query3","query4"]}`;
 
           {scanning===selectedComp.id&&(
             <div>
-              <Spinner color="#38bdf8" label="Ricerca in corso…"/>
+              <Spinner color="var(--acc-blue)" label="Ricerca in corso…"/>
               {scanLog.length>0&&(
-                <div style={{marginTop:10,background:"#020508",border:"1px solid #1e3a5f",borderRadius:8,padding:10,maxHeight:160,overflowY:"auto"}}>
+                <div style={{marginTop:10,background:"#020508",border:"1px solid var(--border)",borderRadius:8,padding:10,maxHeight:160,overflowY:"auto"}}>
                   {scanLog.map((l,i)=>(
-                    <div key={i} style={{fontSize:11,color:l.includes("✅")?"#00ff9d":l.includes("❌")?"#ff6b35":l.includes("⚠️")?"#f59e0b":"#4a6a8a",fontFamily:"monospace",lineHeight:1.6}}>{l}</div>
+                    <div key={i} style={{fontSize:11,color:l.includes("✅")?"var(--acc-green)":l.includes("❌")?"var(--acc-red)":l.includes("⚠️")?"var(--acc-orange)":"var(--text-muted)",fontFamily:"monospace",lineHeight:1.6}}>{l}</div>
                   ))}
                 </div>
               )}
@@ -1503,17 +1509,17 @@ Rispondi SOLO con JSON: {"queries":["query1","query2","query3","query4"]}`;
           )}
 
           {!scanning&&scanTab==="video"&&selectedComp.videos?.length===0&&(
-            <div style={{background:"#070f1e",border:"1px dashed #1e3a5f",borderRadius:8,padding:14,marginBottom:10}}>
-              <div style={{color:"#4a6a8a",fontFamily:"monospace",fontSize:12,marginBottom:10}}>
+            <div style={{background:"var(--bg-panel)",border:"1px dashed var(--border)",borderRadius:8,padding:14,marginBottom:10}}>
+              <div style={{color:"var(--text-muted)",fontFamily:"monospace",fontSize:12,marginBottom:10}}>
                 Nessun video trovato automaticamente. Puoi incollare link o caption manualmente:
               </div>
-              <button onClick={()=>setShowManual(!showManual)} style={{background:"none",border:"1px solid #1e3a5f",color:"#7a9bc0",borderRadius:6,padding:"6px 12px",cursor:"pointer",fontSize:12,fontFamily:"monospace",marginBottom:10}}>
+              <button onClick={()=>setShowManual(!showManual)} style={{background:"none",border:"1px solid var(--border)",color:"var(--text-muted)",borderRadius:6,padding:"6px 12px",cursor:"pointer",fontSize:12,fontFamily:"monospace",marginBottom:10}}>
                 {showManual?"▲ Nascondi":"📋 Incolla link / caption manualmente"}
               </button>
               {showManual&&(
                 <>
                   <Textarea value={manualLinks} onChange={setManualLinks} placeholder={"Incolla link o caption dei video, uno per riga:\nhttps://tiktok.com/@.../video/123\noppure: 'Mangio solo proteine per 7 giorni - risultati shock'\n..."} rows={5}/>
-                  <Btn onClick={()=>scoreManualLinks(selectedComp)} loading={scanning===selectedComp.id} color="#38bdf8">⭐ Analizza e dai voto</Btn>
+                  <Btn onClick={()=>scoreManualLinks(selectedComp)} loading={scanning===selectedComp.id} color="var(--acc-blue)">⭐ Analizza e dai voto</Btn>
                 </>
               )}
             </div>
@@ -1531,41 +1537,41 @@ Rispondi SOLO con JSON: {"queries":["query1","query2","query3","query4"]}`;
                   {id:"weaknesses", label:"Debolezze",       icon:"⚠️", val: selectedComp.profileData.weaknesses},
                   {id:"keywords",   label:"Keywords",        icon:"🔑", val: Array.isArray(selectedComp.profileData.keywords) ? selectedComp.profileData.keywords.map(k=>`• ${k}`).join("\n") : selectedComp.profileData.keywords},
                 ].map(({id,label,icon,val})=>(
-                  <CollapsibleSection key={id} title={label} icon={icon} color="#a78bfa" defaultOpen={id==="overview"}>
+                  <CollapsibleSection key={id} title={label} icon={icon} color="var(--acc-purple)" defaultOpen={id==="overview"}>
                     {val || "N/D"}
                   </CollapsibleSection>
                 ))}
               </div>
             ) : (
               profileResult
-                ? <ResultBox text={profileResult} color="#a78bfa"/>
-                : <div style={{color:"#2a4a6a",fontFamily:"monospace",fontSize:12}}>Nessuna analisi profilo disponibile. Esegui prima la scansione.</div>
+                ? <ResultBox text={profileResult} color="var(--acc-purple)"/>
+                : <div style={{color:"var(--border-focus)",fontFamily:"monospace",fontSize:12}}>Nessuna analisi profilo disponibile. Esegui prima la scansione.</div>
             )
           )}
 
           {!scanning&&scanTab==="competitor"&&(
             similarItems.length>0 ? (
               <div>
-                {similarResult&&<div style={{fontSize:10,color:"#4a6a8a",fontFamily:"monospace",marginBottom:10}}>Query usate: {similarResult}</div>}
+                {similarResult&&<div style={{fontSize:10,color:"var(--text-muted)",fontFamily:"monospace",marginBottom:10}}>Query usate: {similarResult}</div>}
                 {similarItems.map((it,i)=>{
                   return (
                     <CollapsibleSection key={`${it.handle}-${i}`} title={
                       <span style={{display:"flex",alignItems:"center",gap:8}}>
                         {it.handle}
-                        <button onClick={e=>{e.stopPropagation(); handleScanSimilar(it);}} style={{background:"#0a1628",border:`1px solid #38bdf866`,color:"#38bdf8",borderRadius:5,padding:"2px 7px",cursor:"pointer",fontSize:10,fontFamily:"monospace",lineHeight:1.4}}>
+                        <button onClick={e=>{e.stopPropagation(); handleScanSimilar(it);}} style={{background:"var(--bg-input-hover)",border:`1px solid rgba(var(--acc-blue-rgb), 0.4)`,color:"var(--acc-blue)",borderRadius:5,padding:"2px 7px",cursor:"pointer",fontSize:10,fontFamily:"monospace",lineHeight:1.4}}>
                           🔍 Scansiona
                         </button>
                       </span>
-                    } icon="👤" color="#f59e0b" defaultOpen={false}>
-                      {it.profileUrl&&<a href={it.profileUrl} target="_blank" rel="noreferrer" style={{display:"inline-block",color:"#00ff9d",fontFamily:"monospace",fontSize:12,marginBottom:8,textDecoration:"none",fontWeight:700}}>{it.profileUrl}</a>}
-                      {it.query&&<div style={{fontSize:10,color:"#4a6a8a",fontFamily:"monospace",marginBottom:6}}>Query: {it.query}</div>}
-                      {it.desc&&<div style={{color:"#8aa8c8",lineHeight:1.6,fontSize:11}}>{it.desc}</div>}
+                    } icon="👤" color="var(--acc-orange)" defaultOpen={false}>
+                      {it.profileUrl&&<a href={it.profileUrl} target="_blank" rel="noreferrer" style={{display:"inline-block",color:"var(--acc-green)",fontFamily:"monospace",fontSize:12,marginBottom:8,textDecoration:"none",fontWeight:700}}>{it.profileUrl}</a>}
+                      {it.query&&<div style={{fontSize:10,color:"var(--text-muted)",fontFamily:"monospace",marginBottom:6}}>Query: {it.query}</div>}
+                      {it.desc&&<div style={{color:"var(--text-muted)",lineHeight:1.6,fontSize:11}}>{it.desc}</div>}
                     </CollapsibleSection>
                   );
                 })}
               </div>
             ) : (
-              <div style={{color:"#2a4a6a",fontFamily:"monospace",fontSize:12}}>Nessun risultato. Clicca "Trova simili" per cercare competitor simili.</div>
+              <div style={{color:"var(--border-focus)",fontFamily:"monospace",fontSize:12}}>Nessun risultato. Clicca "Trova simili" per cercare competitor simili.</div>
             )
           )}
 
@@ -1576,7 +1582,7 @@ Rispondi SOLO con JSON: {"queries":["query1","query2","query3","query4"]}`;
         </div>
       )}
 
-      {(analyzing||batchLoading||discovering)&&<Spinner color="#a78bfa"/>}
+      {(analyzing||batchLoading||discovering)&&<Spinner color="var(--acc-purple)"/>}
     </div>
   );
 }
@@ -1606,18 +1612,34 @@ export default function App() {
   };
   const clearAccounts = () => { setSelectedAccounts([]); };
 
-  return (
-    <div style={{minHeight:"100vh",background:"#04080f",fontFamily:"'Georgia','Times New Roman',serif",paddingBottom:60,backgroundImage:`radial-gradient(ellipse at 20% 50%,#00ff9d08,transparent 50%),radial-gradient(ellipse at 80% 20%,#a78bfa08,transparent 50%)`}}>
-      <style>{`@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}@keyframes slideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:#070f1e}::-webkit-scrollbar-thumb{background:#1e3a5f;border-radius:2px}select option{background:#070f1e}textarea::placeholder,input::placeholder{color:#2a4a6a}`}</style>
+  const [theme, setTheme] = useState(() => {
+     return window.localStorage.getItem("viralos_theme") || "light";
+  });
 
-      <div style={{padding:"22px 16px 18px",borderBottom:"1px solid #0e2040",background:"linear-gradient(180deg,#060d1a,transparent)"}}>
+  useEffect(() => {
+     document.documentElement.setAttribute("data-theme", theme);
+     window.localStorage.setItem("viralos_theme", theme);
+  }, [theme]);
+
+  const toggleTheme = () => {
+     setTheme(t => t === "light" ? "dark" : "light");
+  };
+
+  return (
+    <div style={{minHeight:"100vh",background:"var(--bg-input)",fontFamily:"'Georgia','Times New Roman',serif",paddingBottom:60,backgroundImage:`radial-gradient(ellipse at 20% 50%,rgba(var(--acc-green-rgb), 0.03),transparent 50%),radial-gradient(ellipse at 80% 20%,rgba(var(--acc-purple-rgb), 0.03),transparent 50%)`}}>
+      <style>{`@keyframes spin{to{transform:rotate(360deg)}}@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}@keyframes slideIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:var(--bg-panel)}::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}select option{background:var(--bg-panel)}textarea::placeholder,input::placeholder{color:var(--border-focus)}`}</style>
+
+      <div style={{padding:"22px 16px 18px",borderBottom:"1px solid var(--border)",background:"linear-gradient(180deg,var(--bg-panel),transparent)", position: "relative"}}>
+        <button onClick={toggleTheme} style={{position:"absolute", top: 22, right: 16, background:"var(--bg-input-hover)", border:"1px solid var(--border)", borderRadius:"20px", padding:"6px 12px", cursor:"pointer", fontSize:16, boxShadow:"0 2px 10px rgba(0,0,0,0.1)", zIndex:10}}>
+           {theme === "light" ? "🌙" : "☀️"}
+        </button>
         <div style={{maxWidth:700,margin:"0 auto"}}>
           <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:6}}>
-            <div style={{width:8,height:8,borderRadius:"50%",background:"#00ff9d",animation:"pulse 2s ease-in-out infinite",boxShadow:"0 0 12px #00ff9d"}}/>
-            <span style={{fontSize:10,color:"#00ff9d",letterSpacing:3,textTransform:"uppercase",fontFamily:"monospace"}}>Content Intelligence System</span>
+            <div style={{width:8,height:8,borderRadius:"50%",background:"var(--acc-green)",animation:"pulse 2s ease-in-out infinite",boxShadow:"0 0 12px var(--acc-green)"}}/>
+            <span style={{fontSize:10,color:"var(--acc-green)",letterSpacing:3,textTransform:"uppercase",fontFamily:"monospace"}}>Content Intelligence System</span>
           </div>
-          <h1 style={{fontSize:26,fontWeight:700,color:"#e8f4ff",margin:0,fontFamily:"'Georgia',serif"}}>ViralOS</h1>
-          <p style={{color:"#4a6a8a",fontSize:12,margin:"4px 0 0",fontFamily:"monospace"}}>Il tuo co-pilota AI per contenuti che esplodono</p>
+          <h1 style={{fontSize:26,fontWeight:700,color:"var(--text-main)",margin:0,fontFamily:"'Georgia',serif"}}>ViralOS</h1>
+          <p style={{color:"var(--text-muted)",fontSize:12,margin:"4px 0 0",fontFamily:"monospace"}}>Il tuo co-pilota AI per contenuti che esplodono</p>
         </div>
       </div>
 
@@ -1625,12 +1647,12 @@ export default function App() {
         <div style={{display:"flex",gap:6,marginTop:16,marginBottom:18,overflowX:"auto",paddingBottom:4}}>
           {TABS.map(tab=>{
             const isActive=activeTab===tab.id; const color=TAB_COLORS[tab.id];
-            return <button key={tab.id} onClick={()=>setActiveTab(tab.id)} style={{flexShrink:0,padding:"10px 14px",borderRadius:9,border:isActive?`1px solid ${color}66`:"1px solid #0e2040",background:isActive?`linear-gradient(135deg,${color}18,${color}08)`:"#060d1a",color:isActive?color:"#4a6a8a",fontSize:12,fontWeight:600,cursor:"pointer",transition:"all .2s",fontFamily:"monospace",display:"flex",alignItems:"center",gap:6,whiteSpace:"nowrap"}}>
+            return <button key={tab.id} onClick={()=>setActiveTab(tab.id)} style={{flexShrink:0,padding:"10px 14px",borderRadius:9,border:isActive?`1px solid rgba(var(${color.slice(4,-1)}-rgb), 0.4)`:"1px solid var(--border)",background:isActive?`linear-gradient(135deg,rgba(var(${color.slice(4,-1)}-rgb), 0.1),rgba(var(${color.slice(4,-1)}-rgb), 0.05))`:"var(--bg-panel)",color:isActive?color:"var(--text-muted)",fontSize:12,fontWeight:600,cursor:"pointer",transition:"all .2s",fontFamily:"monospace",display:"flex",alignItems:"center",gap:6,whiteSpace:"nowrap"}}>
               <span style={{fontSize:16}}>{tab.icon}</span><span>{tab.label}</span>
             </button>;
           })}
         </div>
-        <div style={{background:"linear-gradient(135deg,#070f1e,#0a1628)",...glow(activeColor),borderRadius:14,padding:"18px 14px",animation:"slideIn .25s ease-out"}}>
+        <div style={{background:"linear-gradient(135deg,var(--bg-panel),var(--bg-input-hover))",...glow(activeColor),borderRadius:14,padding:"18px 14px",animation:"slideIn .25s ease-out"}}>
           <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:18}}>
             <span style={{fontSize:18}}>{TABS.find(t=>t.id===activeTab)?.icon}</span>
             <h2 style={{margin:0,fontSize:17,color:activeColor,fontFamily:"monospace",letterSpacing:.5}}>{TABS.find(t=>t.id===activeTab)?.label}</h2>
@@ -1641,7 +1663,7 @@ export default function App() {
           <div style={{display:activeTab==="viral"?"block":"none"}}><ViralFormula/></div>
           <div style={{display:activeTab==="explorer"?"block":"none"}}><Explorer requestedMode={explorerRequestedMode} clearRequestedMode={()=>setExplorerRequestedMode(null)} onGoToScan={(h, p)=> { setPendingScan({handle:h, platform:p}); setActiveTab("competitors"); }}/></div>
         </div>
-        <p style={{textAlign:"center",color:"#1e3a5f",fontSize:10,marginTop:16,fontFamily:"monospace"}}>Powered by Gemini AI · Dati salvati in modo persistente</p>
+        <p style={{textAlign:"center",color:"var(--border)",fontSize:10,marginTop:16,fontFamily:"monospace"}}>Powered by Gemini AI · Dati salvati in modo persistente</p>
       </div>
     </div>
   );
