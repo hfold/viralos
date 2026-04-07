@@ -1370,12 +1370,22 @@ function Competitors({selectedAccounts=[], onAddAccount, onRemoveAccount, onGoTo
   const runSimilarSearch = async (comp, overrideKeywords=[]) => {
     setDiscovering(comp.id); setSimilarResult(""); setSimilarComp(comp); setSimilarItems([]);
 
-    const videoTitles = (comp.videos || []).filter(v=>v.title).map(v=>`- ${v.title}`).join("\n");
+    const pd = comp.profileData || {};
     const keywords = (overrideKeywords.length ? overrideKeywords.join(" ") : comp.analysisKeywords?.join(" ") || comp.searchKeywords || "").trim();
-    const profileOverview = comp.profileData?.overview || "";
+
+    // Costruisci contesto dall'analisi profilo se disponibile, altrimenti dai titoli video
+    let profileContext = "";
+    if (pd.overview) profileContext += `Overview: ${pd.overview}\n`;
+    if (pd.strategy) profileContext += `Strategia contenuti: ${pd.strategy}\n`;
+    if (pd.patterns) profileContext += `Pattern: ${pd.patterns}\n`;
+    if (pd.positioning) profileContext += `Posizionamento: ${pd.positioning}\n`;
+    if (!profileContext) {
+      const videoTitles = (comp.videos || []).filter(v=>v.title).map(v=>`- ${v.title}`).join("\n");
+      if (videoTitles) profileContext = `Video:\n${videoTitles}\n`;
+    }
 
     // Step 1: LLM genera query brevi con termini professionali/di nicchia
-    const qPrompt = `Profilo: ${comp.handle}\nPiattaforma: ${comp.platform}${keywords?`\nNicchia: ${keywords}`:""}${profileOverview?`\nOverview: ${profileOverview}`:""}${videoTitles?`\nVideo:\n${videoTitles}`:""}`;
+    const qPrompt = `Profilo: ${comp.handle}\nPiattaforma: ${comp.platform}${keywords?`\nKeywords: ${keywords}`:""}\n\n${profileContext}`;
     const qSystem = `Analizza questo creator e genera 4 query per trovare account simili. Ogni query deve essere il NOME DI UN TIPO DI PERSONA o PROFESSIONE, massimo 3 parole.
 
 ESEMPI CORRETTI (nomi di figure professionali o creator):
